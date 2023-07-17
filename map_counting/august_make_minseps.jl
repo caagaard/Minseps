@@ -1,7 +1,8 @@
 include("june_version.jl")
 include("hypermap_duals.jl")
-include("graphmethods.jl")
+#include("graphmethods.jl")
 include("check_transitive.jl")
+using Graphs
 using Combinatorics
 using DataStructures
 
@@ -224,27 +225,34 @@ function dual_list_to_minseps(dual_list::Vector{Vector{Perm{Int8}}})
 	return(minseps_list)
 end
 
-function minseps_list_to_graphs(minsep_list::Vector{Vector{Perm{Int8}}}, g::Int)
-	temp_graphs_list = [graph_from_embedding(ribbon_graph[1], length(cycles(ribbon_graph[2])),1) for ribbon_graph in minsep_list]
-	sorted_graphs_list =[Matrix{Int64}[] for e in 1:4*g]
-    println("Hello?")
-    flush(stdout)
-	for ribbon_graph in minsep_list
-		E = length(cycles(ribbon_graph[2]))
-		push!(sorted_graphs_list[E], graph_from_embedding(ribbon_graph[1], E,1))
-	end
-	# Need to deal with edge countness
-#	final_graphs = Vector{Vector{Matrix{Int64}}}[getIsoClasses(sorted_graphs_list[e]) for e in 1:length(sorted_graphs_list)]
-        final_graphs= Vector{Vector{Matrix{Int64}}}()
-        for e in 1:length(sorted_graphs_list)
-                A = getIsoClasses(sorted_graphs_list[e])
-                if typeof(A) == Vector{Matrix{Int64}}
-                        push!(final_graphs, A)
-                else
-                        return(A)
+function getIsoClasses(graphlist)
+        isoclasses = Vector{SimpleGraph}() 
+        for graph in graphlist
+                isdupe = 0
+                for G in isoclasses
+                        if Graphs.Experimental.has_isomorph(graph, G)==1
+                                isdupe = 1
+                                break
+                        end
+                end
+                if isdupe == 0
+                        push!(isoclasses, graph)
                 end
         end
-#	return(vcat(final_graphs...))
-        fgs = Vector{Matrix{Int64}}(reduce(vcat, final_graphs))
+        return(isoclasses)
+end
+
+function minseps_list_to_graphs(minsep_list::Vector{Vector{Perm{Int8}}}, g::Int)
+        temp_graphs_list = [graph_from_embedding(ribbon_graph[1], length(cycles(ribbon_graph[2])),1) for ribbon_graph in minsep_list]
+        sorted_graphs_list =[Vector{SimpleGraph}() for e in 1:4*g]
+        println("Hello?")
+        flush(stdout)
+        for ribbon_graph in minsep_list
+		        E = length(cycles(ribbon_graph[2]))
+	            push!(sorted_graphs_list[E], graph_from_embedding(ribbon_graph[1], E,1))
+        end
+        # Need to deal with edge countness
+        final_graphs = [getIsoClasses(sorted_graphs_list[e]) for e in 1:length(sorted_graphs_list)]
+        fgs = reduce(vcat, final_graphs)
         return(fgs)
 end

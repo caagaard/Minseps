@@ -1,5 +1,6 @@
 include("perm_utils.jl")
 using Oscar
+using Graphs
 
 function get_dual_map(psi::Perm, phi::Perm, n)
         phitemp = [n+phi[i] for i in Int8(1):n]
@@ -41,24 +42,47 @@ function simplified_g(A = Matrix{Int4})
 end
 
 function graph_from_embedding(nu, e, force_simple=0)
-    v= length(cycles(nu))
-    Adj = Matrix{Int64}(undef, v, v)
-    for (i, vert) in enumerate(cycles(nu))
-        matchers = flipVert(vert, e)
-        for (j, altvert) in enumerate(cycles(nu))
-            s = length(intersect(altvert, matchers))
-            #print(s)
-	            if i ==j 
-		                Adj[j,i] = div(s,2)
-                else
-                        Adj[j,i] = s
-	            end
+        G = Graphs.Graph(length(cycles(nu)))
+        for i in 1:length(cycles(nu))
+            for x in cycles(nu)[i]
+                if x < e+1
+                    for j in 1:length(cycles(nu))
+                        if x + e in cycles(nu)[j]
+                            if Graphs.has_edge(G, i, j)
+                                Graphs.add_vertex!(G)
+                                Graphs.add_edge!(G, i, Graphs.nv(G))
+                                Graphs.add_edge!(G, j, Graphs.nv(G))
+                                break
+                            else
+                                Graphs.add_edge!(G, i,j)
+                                break
+                            end
+                        end
+                    end
+                end
+            end
         end
-    end
-    if force_simple == 0
-        return(Adj)
-    else
-        return(simplified_g(Adj))
-    end
-end 
+        return(G)
+end
+#function graph_from_embedding(nu, e, force_simple=0)
+#    v= length(cycles(nu))
+#    Adj = Matrix{Int64}(undef, v, v)
+#    for (i, vert) in enumerate(cycles(nu))
+#        matchers = flipVert(vert, e)
+#        for (j, altvert) in enumerate(cycles(nu))
+#            s = length(intersect(altvert, matchers))
+#            #print(s)
+#	            if i ==j 
+#		                Adj[j,i] = div(s,2)
+#                else
+#                        Adj[j,i] = s
+#	            end
+#        end
+#    end
+#    if force_simple == 0
+#        return(Adj)
+#    else
+#        return(simplified_g(Adj))
+#    end
+#end 
 
