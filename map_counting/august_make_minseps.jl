@@ -225,13 +225,13 @@ function dual_list_to_minseps(dual_list::Vector{Vector{Perm{Int8}}})
 end
 
 function minseps_list_to_graphs(minsep_list::Vector{Vector{Perm{Int8}}}, g::Int)
-	temp_graphs_list = [graph_from_embedding(ribbon_graph[1], length(cycles(ribbon_graph[2]))) for ribbon_graph in minsep_list]
+	temp_graphs_list = [graph_from_embedding(ribbon_graph[1], length(cycles(ribbon_graph[2])),1) for ribbon_graph in minsep_list]
 	sorted_graphs_list =[Matrix{Int64}[] for e in 1:4*g]
     println("Hello?")
     flush(stdout)
 	for ribbon_graph in minsep_list
 		E = length(cycles(ribbon_graph[2]))
-		push!(sorted_graphs_list[E], graph_from_embedding(ribbon_graph[1], E))
+		push!(sorted_graphs_list[E], graph_from_embedding(ribbon_graph[1], E,1))
 	end
 	# Need to deal with edge countness
 #	final_graphs = Vector{Vector{Matrix{Int64}}}[getIsoClasses(sorted_graphs_list[e]) for e in 1:length(sorted_graphs_list)]

@@ -49,9 +49,9 @@ function graph_from_embedding(nu, e, force_simple=0)
             s = length(intersect(altvert, matchers))
             #print(s)
 	            if i ==j 
-		                Adj[i,j] = div(s,2)
+		                Adj[j,i] = div(s,2)
                 else
-                        Adj[i,j] = s
+                        Adj[j,i] = s
 	            end
         end
     end

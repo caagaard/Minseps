@@ -13,15 +13,15 @@ function make_I_g(g_graphlist, existing_graphs)
 		else 
 			isDupe = 0
 			for e_graph in existing_graphs
-				if are_isomorphic(graph, e_graph) ==1
-                #if Graphs.Experimental.has_isomorph(Graphs.Graph(graph), e_graph) ==1
+				#if are_isomorphic(graph, e_graph) ==1
+                if Graphs.Experimental.has_isomorph(Graphs.Graph(graph), e_graph) ==1
 					isDupe = 1
 					break
 				end
 			end
 			if isDupe == 0
-				#push!(I_g, Graphs.Graph(graph))
-                push!(I_g, graph)
+				push!(I_g, Graphs.Graph(graph))
+                #push!(I_g, graph)
 			end
 		end
 	end
@@ -29,9 +29,11 @@ function make_I_g(g_graphlist, existing_graphs)
 end
 
 function main(max_g::Int64)
-    graphstime = 0.0
+    graphmaketime = 0.0
+    graphisotime = 0.0
 	I_g_list = [[] for i in 0:max_g]
-	I_gs = [[1;;]]
+	#I_gs = [[1;;]]
+    I_gs = [Graphs.Graph([1;;])]
 	I_g_list[1] = I_gs
 	for g in 1:max_g
 		#x = time()
@@ -44,15 +46,19 @@ function main(max_g::Int64)
 		flush(stdout)
         tt = time()
 		graphsg = minseps_list_to_graphs(g_minseps, g)
+        graphmaketime = graphmaketime + (time()-tt)
+        tt = time()
 		I_g = make_I_g(graphsg, I_gs)
 		I_g_list[g+1] = I_g
 		I_gs = vcat(I_gs, I_g)
-        graphstime= graphstime + time() - tt
+        graphisotime = graphisotime + (time()-tt)
 		println(length(I_g))
 		flush(stdout)
 	end
-    println("total graphs time = ")
-    println(graphstime)
+    println("total graphs make time = ")
+    println(graphmaketime)
+    println("total graphs iso time = ")
+    println(graphisotime)
 #	open("july_15_test_outputs.txt", "w") do file
 #		for g in 0:max_g
 #			write(file, string(g))
