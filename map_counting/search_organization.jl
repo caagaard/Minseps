@@ -187,7 +187,11 @@ function count_embeds(hypermap_list::Vector{Vector{Perm{Int}}})
 	#	tempcount = tempcount +1
         #elseif is_self_color_dual(hypermap[1], hypermap[2]) == 1
 	#	tempcount = tempcount +1
-	if conjclass(hypermap[1]) == conjclass(hypermap[2]) 
+	if length(cycles(hypermap[1])) == length(cycles(hypermap[2]))
+		#if conjclass(hypermap[1]) != conjclass(hypermap[2])
+		#	println("was it double counted?")
+		#	println(hypermap)
+		#end
 		if is_self_color_dual(hypermap[1], hypermap[2]) == 0
 			tempcount= tempcount -0.5
 		end

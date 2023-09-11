@@ -60,4 +60,4 @@ function main(max_g::Int)
 #    println(graphisotime)
 end
 
-main(4)
+main(5)
