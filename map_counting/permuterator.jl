@@ -1,3 +1,4 @@
+# Creates an iterator over all permutations of given length from a given iterable
 struct PermutationIterator{T}
     data::T
     length::Int

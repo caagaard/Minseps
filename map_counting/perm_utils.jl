@@ -43,7 +43,7 @@ end
 
 # Makes a "default" permutation with given cycle type.  Returns it as a list of integers
 function make_default_perm(in_partition::Vector{Int})
-	defperm = []
+	defperm = Vector{Vector{Int64}}()
 	counter = 1
 	for i in 1:length(in_partition)
 		push!(defperm, [counter:counter+in_partition[i]-1;])
@@ -54,12 +54,12 @@ end
 
 # Takes a pair of permutations and returns whether they generate a transitive permutation group
 # Not sure about typing on the input
-function is_transitive(permpair::Vector{Perm{Int}})
-	sigma = permpair[1]
-	alpha = permpair[2]
-	n = sum(conjclass(sigma))
+function is_transitive_pair(permpair::Vector{Perm{Int}})
+	n = sum(conjclass(permpair[1]))
 	S = SymmetricGroup(n)
+	sigma = cperm(S, [cycles(permpair[1])[i] for i in 1:length(cycles(permpair[1]))])
+	alpha = cperm(S, [cycles(permpair[2])[i] for i in 1:length(cycles(permpair[2]))])
 	# type adjust sigma and alph to be elements of S
-	H = Sub(S, [sig, alph])
+	H = permutation_group(n, [sigma, alpha])
 	return(is_transitive(H))
 end	
