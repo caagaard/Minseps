@@ -51,11 +51,16 @@ function make_default_perm(in_partition::Vector{Int})
 	return(defperm)
 end
 
+# Finds minsep embeddings with least separating genus g
+# and embedding genus ghat
 function get_ghat_minseps(g::Int, ghat::Int)
 	ghat_minseps = []
+	embed_counter = 0
 	for E in (g+ghat+1):(2*(g+ghat))
 		x = time()
-		push!(ghat_minseps, get_ghat_minseps_edges(g, ghat, E))
+		y,z = get_ghat_minseps_edges(g,ghat, E)
+		embed_counter = embed_counter + y
+		push!(ghat_minseps, z)
 		println(string(E))
 		flush(stdout)
         #println("E edges time =")
@@ -63,11 +68,12 @@ function get_ghat_minseps(g::Int, ghat::Int)
 		#flush(stdout)
 	end
 	ghat_minseps = reduce(vcat, ghat_minseps)
-	return(ghat_minseps)
+	return(embed_counter, ghat_minseps)
 end
 
 # Find minimal separating ribbon graphs with ribbon graph genus ghat and e edges
-# Specialized version of get_ghat_minseps to be more easily split up for long calculations on multiple nodes
+# Specialized version of get_ghat_minseps to be more easily split up for long calculations on 
+# multiple nodes
 function get_ghat_minseps_edges(g::Int, ghat::Int, E::Int)
 	ghat_minseps_E = []
 	needed_vertices = 2+g-ghat
@@ -109,28 +115,38 @@ function get_ghat_minseps_edges(g::Int, ghat::Int, E::Int)
 		end
 	end
 	flush(stdout)
-	return(ghat_minseps_E)
+	#E_count = count_embeds(ghat_minseps_E)
+	#ghat_maps_E = dual_list_to_minseps(ghat_minseps_E)
+	#ghat_E_graphs = minseps_list_to_graphs(ghat_maps_E, g)
+	#return(E_count, ghat_E_graphs)
+	reduced_minseps_list = reduce(vcat, [[[x[1], i] for i in x[2]] for x in ghat_minseps_E])
+	E_count = count_embeds(reduced_minseps_list)
+	ghat_E_graphs = minseps_list_to_graphs(dual_list_to_minseps(reduced_minseps_list), g)
+	return(E_count, ghat_E_graphs)
 end
 
 
 function generate_minseps_genus(g::Int)
 	total_minseps = []
+	embed_count = 0
 	for ghat in 0:g
 		println("g, ghat = ")
 		print(string(g))
 		println(string(ghat))
 		flush(stdout)
-		glist = get_ghat_minseps(g,ghat)
-		biggerlist = []
-		for x in glist
-			templist = [[x[1], i] for i in x[2]]
-			push!(biggerlist, templist)
-		end
-		gbiglist = reduce(vcat,biggerlist)
-		ghypermaps = [permpair for permpair in gbiglist if is_transitive_pair(permpair)]
-		push!(total_minseps, ghypermaps)
+		n, glist = get_ghat_minseps(g,ghat)
+		embed_count= embed_count + n
+		#biggerlist = []
+		#for x in glist
+		#	templist = [[x[1], i] for i in x[2]]
+		#	push!(biggerlist, templist)
+		#end
+		#gbiglist = reduce(vcat,biggerlist)
+		push!(total_minseps, glist)
+		#ghypermaps = [permpair for permpair in gbiglist if is_transitive_pair(permpair)]
+		#push!(total_minseps, ghypermaps)
 	end
-	return(reduce(vcat,total_minseps))
+	return(embed_count, reduce(vcat,total_minseps))
 end
 
 # Returns the conjugacy class of a permutation as a list of cycle lengths
@@ -158,28 +174,8 @@ function solve_conjugation(x::Perm{Int}, y::Perm{Int}, n)
            end
 end
 
-# Takes a hypermap as input and determines if color-swapping is an isomorphism
-#function is_self_dual(x::Perm{Int}, y::Perm{Int})
-#	isdual = 0
-#	if conjclass(x) != conjclass(y)
-#		return(0)
-#	end
-#	E = sum(conjclass(x))
-#	t = solve_conjugation(x,y,E)
-#	S = symmetric_group(E)
-#	psi = perm(S, [x[i] for i in 1:E])
-#	phi = perm(S, [y[i] for i in 1:E])
-#	rho = perm(S, [t[i] for i in 1:E])
-#	H = centralizer(S, psi)[1]
-#	for h in H
-#		if (rho^(-1)*h^(-1)*phi*h*rho) == psi
-#			isdual = 1
-#			return(isdual)
-#		end
-#	end
-#	return(isdual)
-#end
-
+# After we convert the hypermap back to a combinatorial map and dualize
+# we don't want to have counted different 2-colorings as different maps
 function count_embeds(hypermap_list::Vector{Vector{Perm{Int}}})
     tempcount = length(hypermap_list)
     for hypermap in hypermap_list
@@ -187,15 +183,24 @@ function count_embeds(hypermap_list::Vector{Vector{Perm{Int}}})
 	#	tempcount = tempcount +1
         #elseif is_self_color_dual(hypermap[1], hypermap[2]) == 1
 	#	tempcount = tempcount +1
+	# 2 distinct colorings may have been counted if there are the 
+	# same number of black and white vertices
 	if length(cycles(hypermap[1])) == length(cycles(hypermap[2]))
 		#if conjclass(hypermap[1]) != conjclass(hypermap[2])
 		#	println("was it double counted?")
 		#	println(hypermap)
 		#end
+		# If switching the vertex coloring is a hypermap
+		# isomorphism we didn't overcount.  Otherwise we did
 		if is_self_color_dual(hypermap[1], hypermap[2]) == 0
 			tempcount= tempcount -0.5
+			println(string(hypermap))
 		end
 	end
+    end
+    if (tempcount % 1) >0
+	println("Alert Alert! Faulty count")
+	println(string(tempcount))
     end
     return(tempcount)
 end
@@ -233,3 +238,5 @@ function minseps_list_to_graphs(minsep_list::Vector{Vector{Perm{Int}}}, g::Int)
         fgs = reduce(vcat, final_graphs)
         return(fgs)
 end
+
+
