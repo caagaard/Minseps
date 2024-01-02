@@ -56,7 +56,7 @@ function get_phi_candidates_v2(n::Int,k::Int,g::Int, psitemp::Vector{Vector{Int}
 					                            if 1 in [length(cyc) for cyc in cycles(theta)]
 						                                nothing
 					                            else
-                        			                    push!(outlist[Threads.threadid()], phi)
+                        			                    	push!(outlist[Threads.threadid()], phi)
 					                            end
 				                        end
 			            end
@@ -84,6 +84,9 @@ function get_phi_candidates_v1(n::Int, part::Vector{Int}, g::Int, psitemp::Vecto
 		thetap = cperm(S, make_default_perm(part)...)
 		CC = [Perm(Vector{Int}(x)) for x in conjugacy_class(S, thetap)]
 		cc_dict = Dict([(c,i) for (i,c) in enumerate(CC)])
+		println(sizeof(CC))
+		println(sizeof(cc_dict))
+		flush(stdout)
         flooptime = time()
 		@floop for theta in CC
 			is_min = 1

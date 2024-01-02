@@ -27,17 +27,9 @@ function is_color_swap_iso(x::Int,y::Int,sigma, alpha)
 		counter = counter +1
 	end
 	if sort(f_array) != [1:E;]
-		println(f_array)
-		println(sort(f_array))
-		print("hmm")
 		return(0)
 	end
 	f = Perm(f_array)
-	println(f)
-	println(string(f*sigma))
-	println(string(alpha*f))
-	printnl(string(f*alpha))
-	println(string(sigma*f))
 		if f*sigma == alpha*f && f*alpha == sigma*f
 			return(1)
 		end

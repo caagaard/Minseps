@@ -81,6 +81,8 @@ function get_ghat_minseps_edges(g::Int, ghat::Int, E::Int)
 		conj_class_nums = get_class_candidates(g, ghat, E, i)
 		psi_choices = Combinatorics.partitions(E, i)
 		if conj_class_nums[1] ==1
+			println("con_class output = 1")
+			flush(stdout)
 			theta_choices = conj_class_nums[3]
 			for psi_choice in psi_choices
 				psi = make_default_perm(psi_choice)
@@ -94,6 +96,8 @@ function get_ghat_minseps_edges(g::Int, ghat::Int, E::Int)
 				push!(ghat_minseps_E, [Perm(Vector{Int}(cperm(S,psi...))), outs])
 			end
 		else
+			println("conjclass output = 2")
+			flush(stdout)
 			phi_cycles = conj_class_nums[4]
 			for psi_choice in psi_choices
 				psi = make_default_perm(psi_choice)
@@ -120,9 +124,11 @@ function get_ghat_minseps_edges(g::Int, ghat::Int, E::Int)
 	#ghat_E_graphs = minseps_list_to_graphs(ghat_maps_E, g)
 	#return(E_count, ghat_E_graphs)
 	reduced_minseps_list = reduce(vcat, [[[x[1], i] for i in x[2]] for x in ghat_minseps_E])
-	E_count = count_embeds(reduced_minseps_list)
-	ghat_E_graphs = minseps_list_to_graphs(dual_list_to_minseps(reduced_minseps_list), g)
-	return(E_count, ghat_E_graphs)
+	connected_minseps_list = [x for x in reduced_minseps_list if is_transitive_pair(x)]
+	E_count = count_embeds(connected_minseps_list)
+	#ghat_E_graphs = minseps_list_to_graphs(dual_list_to_minseps(connected_minseps_list), g)
+	#return(E_count, ghat_E_graphs)
+	return(E_count)
 end
 
 
@@ -194,7 +200,7 @@ function count_embeds(hypermap_list::Vector{Vector{Perm{Int}}})
 		# isomorphism we didn't overcount.  Otherwise we did
 		if is_self_color_dual(hypermap[1], hypermap[2]) == 0
 			tempcount= tempcount -0.5
-			println(string(hypermap))
+			#println(string(hypermap))
 		end
 	end
     end
