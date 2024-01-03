@@ -31,12 +31,24 @@ function get_class_candidates(g::Int, ghat::Int, E::Int, i::Int)
 	n_psi = sum([conj_class_size(part) for part in psi_candidates])
 	n_phi = sum([conj_class_size(part) for part in phi_candidates])
 	n_theta = sum([conj_class_size(part) for part in theta_candidates])
-	if n_phi > n_theta
-		theta_flag = 1
+	#Z = [length(psi_candidates)*n_phi, length(psi_candidates)*n_theta, length(phi_candidates)*n_psi, length(phi_candidates)*n_theta, length(theta_candidates)*n_psi, length(theta_candidates)*n_phi]
+	#println(string(Z))
+	#flush(stdout)
+	if n_psi*length(phi_candidates) >= n_phi*length(psi_candidates)
+		if n_phi > n_theta
+			theta_flag = 1
+		else
+			theta_flag = 0
+		end
+		return(theta_flag, psi_candidates, theta_candidates, j, 0)
 	else
-		theta_flag = 0
+		if n_psi > n_theta
+			theta_flag =1
+		else
+			theta_flag =0
+		end
+		return(theta_flag, phi_candidates, theta_candidates, i, 1)
 	end
-	return(theta_flag, psi_candidates, theta_candidates, j)
 end
 
 function make_default_perm(in_partition::Vector{Int})
@@ -73,14 +85,14 @@ function get_ghat_minseps_edges(g::Int, ghat::Int, E::Int)
 	needed_vertices = 2+g-ghat
 	for i in 1:div(needed_vertices,2)
 		conj_class_nums = get_class_candidates(g, ghat, E, i)
-		psi_choices = Combinatorics.partitions(E, i)
+		psi_choices = conj_class_nums[2] #Combinatorics.partitions(E, i)
 		if conj_class_nums[1] ==1
 			theta_choices = conj_class_nums[3]
 			for psi_choice in psi_choices
 				psi = make_default_perm(psi_choice)
 				tempouts = []
 				for theta_choice in theta_choices
-					push!(tempouts, get_phi_candidates_v1(E,theta_choice, ghat, psi, (needed_vertices-i))[2])
+					push!(tempouts, get_phi_candidates_v1(E,theta_choice, ghat, psi, (conj_class_nums[4]))[2])
 				end
 				outs = reduce(vcat,tempouts)
 				# Need to make psi into an actual Perm{Int} object now:
@@ -88,15 +100,15 @@ function get_ghat_minseps_edges(g::Int, ghat::Int, E::Int)
 				push!(ghat_minseps_E, [Perm(Vector{Int}(cperm(S,psi...))), outs])
 			end
 		else
-			phi_cycles = conj_class_nums[4]
-			for psi_choice in psi_choices
-				psi = make_default_perm(psi_choice)
-				#println("psi = ")
-				#println(psi)
-				#flush(stdout)
-				outs = get_phi_candidates_v2(E, phi_cycles, ghat, psi)
-				push!(ghat_minseps_E, outs)
-			end
+				phi_cycles = conj_class_nums[4]
+				for psi_choice in psi_choices
+					psi = make_default_perm(psi_choice)
+					#println("psi = ")
+					#println(psi)
+					#flush(stdout)
+					outs = get_phi_candidates_v2(E, phi_cycles, ghat, psi)
+					push!(ghat_minseps_E, outs)
+				end
 		end
 	end
 	Counter = 0
