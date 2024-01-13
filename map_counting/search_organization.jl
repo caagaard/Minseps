@@ -31,12 +31,21 @@ function get_class_candidates(g::Int, ghat::Int, E::Int, i::Int)
 	n_psi = sum([conj_class_size(part) for part in psi_candidates])
 	n_phi = sum([conj_class_size(part) for part in phi_candidates])
 	n_theta = sum([conj_class_size(part) for part in theta_candidates])
-	if n_phi > n_theta
-		theta_flag = 1
-	else
-		theta_flag = 0
-	end
-	return(theta_flag, psi_candidates, theta_candidates, j)
+    if n_psi >= n_phi
+	    if n_phi > n_theta
+		        theta_flag = 1
+	    else
+		        theta_flag = 0
+	    end
+	    return(theta_flag, psi_candidates, theta_candidates, j)
+    else
+        if n_psi > n_theta
+                theta_flag = 1
+        else
+                theta_flag =0
+        end
+        return(theta_flag, phi_candidates, theta_candidates, i)
+    end
 end
 
 function make_default_perm(in_partition::Vector{Int})
@@ -73,7 +82,7 @@ function get_ghat_minseps_edges(g::Int, ghat::Int, E::Int)
 	needed_vertices = 2+g-ghat
 	for i in 1:div(needed_vertices,2)
 		conj_class_nums = get_class_candidates(g, ghat, E, i)
-		psi_choices = Combinatorics.partitions(E, i)
+		psi_choices = conj_class_nums[2] #Combinatorics.partitions(E, i)
 		if conj_class_nums[1] ==1
 			theta_choices = conj_class_nums[3]
 			for psi_choice in psi_choices

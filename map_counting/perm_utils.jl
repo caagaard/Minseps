@@ -60,6 +60,7 @@ function is_transitive_pair(permpair::Vector{Perm{Int}})
 	sigma = cperm(S, [cycles(permpair[1])[i] for i in 1:length(cycles(permpair[1]))])
 	alpha = cperm(S, [cycles(permpair[2])[i] for i in 1:length(cycles(permpair[2]))])
 	# type adjust sigma and alph to be elements of S
-	H = permutation_group(n, [sigma, alpha])
+	H = Oscar.permutation_group(n, [sigma, alpha])
 	return(is_transitive(H))
 end	
+
