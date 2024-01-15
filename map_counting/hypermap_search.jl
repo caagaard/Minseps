@@ -41,7 +41,7 @@ function get_phi_candidates_v2(n::Int,k::Int,g::Int, psitemp::Vector{Vector{Int}
 	end
         for part in parts
                 decomp = perm_components(part,Int(n))
-                PP = perm_counter([length(part[i]) for i in 1:length(part)])
+                PP = perm_counter([length(x) for x in part])
                 flooptime = time()
                 @floop for index in Iterators.product(PP...)
                         phi = make_perm(decomp[1],decomp[2], decomp[3], index)
@@ -71,6 +71,8 @@ function get_phi_candidates_v2(n::Int,k::Int,g::Int, psitemp::Vector{Vector{Int}
 end 
 
 function get_phi_candidates_v1(n::Int, part::Vector{Int}, g::Int, psitemp::Vector{Vector{Int}}, n_phi_cycles::Int)
+        #println(string(part))
+        #flush(stdout)
 	if sum(part) != n
 		println("Invalid Partition")
 		return([])
@@ -88,18 +90,25 @@ function get_phi_candidates_v1(n::Int, part::Vector{Int}, g::Int, psitemp::Vecto
         cc= counter(part)
         blocklengths=[k*cc[k] for k in keys(cc)]
         outer_structure = [colex_bitstring(n - sum(blocklengths[1:i-1]), blocklengths[i]) for i in 1:length(blocklengths)]
+        #PP = perm_counter([x for x in sort(part)])
+        #PP = perm_counter([x for x in part])
+        PP = perm_counter(vcat([[k for i in 1:cc[k]] for k in keys(cc)]...))
 		#thetap = Perm(Vector{Int}(cperm(S, make_default_perm(part)...)))
         #thetap = cperm(S, make_default_perm(part)...)
 		#CC = [Perm(Vector{Int}(x)) for x in conjugacy_class(S, thetap)]
         #CC = 
         flooptime = time()
-		tuple_prod= Iterators.product(outer_structure..., [makeRCI(k, cc[k]) for k in keys(cc)]...)
+		tuple_prod= Iterators.product(outer_structure..., [makeRCI(k, cc[k]) for k in keys(cc)]..., PP...)
+        #tuple_prod= Iterators.product(outer_structure..., [makeRCI(k, cc[k]) for k in keys(cc)]...)
         @floop for thetatuple in tuple_prod
             # thetatuple is a tuple with the first length(cc) being the big blocks and the remaining elements the "regular_combination_tuples"
             # we need 
-            block_parts = thetatuple[1:length(keys(cc))]
+            block_parts = deepcopy(thetatuple[1:length(keys(cc))])
             #println(block_parts)
-            v_parts = [x for x in thetatuple[(length(keys(cc))+1):end]]
+            v_parts = deepcopy([x for x in thetatuple[(length(keys(cc))+1):(end-length(part))]])
+            #v_parts = deepcopy([x for x in thetatuple[(length(keys(cc))+1):end]])
+            index = thetatuple[(1+end- length(part)):end]
+            #println(index)
             #println(v_parts)
             N = [1:n;]
             t_parts = Vector{Vector{Int}}[]
@@ -108,12 +117,17 @@ function get_phi_candidates_v1(n::Int, part::Vector{Int}, g::Int, psitemp::Vecto
                 N = N[filter(x -> block_parts[i][x] == 0, eachindex(block_parts[i]))]
             end
             theta_part = vcat(t_parts...)
-            decomp = perm_components(theta_part, n)
-            PP = perm_counter([length(theta_part[i]) for i in 1:length(theta_part)])
-            for index in Iterators.product(PP...)
+            #print("checking lengths match: ")
+            #println(string(length(theta_part == length(part))))
+            #println(string(theta_part))
+            #println(string(part))
+            #println(index)
+            decomp = deepcopy(perm_components(theta_part, n))
+            #PP = perm_counter([length(theta_part[i]) for i in 1:length(theta_part)])
+            #for index in Iterators.product(PP...)
                         theta = make_perm(decomp[1],decomp[2], decomp[3], index)
-                        println(theta)
-                        flush(stdout)
+                        #println(theta)
+                        #flush(stdout)
                         phi = psi^(-1)*theta^(-1)
                         if length(cycles(phi)) == n_phi_cycles
                                 is_min =1
@@ -127,7 +141,7 @@ function get_phi_candidates_v1(n::Int, part::Vector{Int}, g::Int, psitemp::Vecto
 					                    push!(outlist[Threads.threadid()], phi)
 				                end
 			            end
-            end
+            #end
 		end
         #println("floop time = ")
         #println(string(time()-flooptime))
