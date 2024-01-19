@@ -41,7 +41,8 @@ function get_phi_candidates_v2(n::Int,k::Int,g::Int, psitemp::Vector{Vector{Int}
 	end
         for part in parts
                 decomp = perm_components(part,Int(n))
-                PP = perm_counter([length(x) for x in part])
+                #PP = perm_counter([length(x) for x in part])
+                PP = perm_counter([length(part[i]) for i in 1:length(part)])
                 flooptime = time()
                 @floop for index in Iterators.product(PP...)
                         phi = make_perm(decomp[1],decomp[2], decomp[3], index)
@@ -53,7 +54,7 @@ function get_phi_candidates_v2(n::Int,k::Int,g::Int, psitemp::Vector{Vector{Int}
 				                end
 			            end
 			            if is_min ==1
-				                theta = psi*phi
+				                theta = phi*psi
 				                # Temporary version just for genus 3, n = 12, k=1
 				                        if length(cycles(theta)) == needed_verts
 					                            if 1 in [length(cyc) for cyc in cycles(theta)]
@@ -71,15 +72,13 @@ function get_phi_candidates_v2(n::Int,k::Int,g::Int, psitemp::Vector{Vector{Int}
 end 
 
 function get_phi_candidates_v1(n::Int, part::Vector{Int}, g::Int, psitemp::Vector{Vector{Int}}, n_phi_cycles::Int)
-        #println(string(part))
-        #flush(stdout)
 	if sum(part) != n
 		println("Invalid Partition")
 		return([])
 	else
 		S = symmetric_group(n)
 		sigma = cperm(S,psitemp...)
-		psi = Perm(Vector{Int}(sigma))
+		p_inv = Perm(Vector{Int}(sigma^(-1)))
 		H = centralizer(S,sigma)
 		HH = [Perm(Vector{Int}(x)) for x in H[1]]
 		outlist = []
@@ -89,27 +88,26 @@ function get_phi_candidates_v1(n::Int, part::Vector{Int}, g::Int, psitemp::Vecto
 
         cc= counter(part)
         blocklengths=[k*cc[k] for k in keys(cc)]
+        K = [k for k in keys(cc)]
         outer_structure = [colex_bitstring(n - sum(blocklengths[1:i-1]), blocklengths[i]) for i in 1:length(blocklengths)]
-        #PP = perm_counter([x for x in sort(part)])
-        #PP = perm_counter([x for x in part])
         PP = perm_counter(vcat([[k for i in 1:cc[k]] for k in keys(cc)]...))
-		#thetap = Perm(Vector{Int}(cperm(S, make_default_perm(part)...)))
-        #thetap = cperm(S, make_default_perm(part)...)
-		#CC = [Perm(Vector{Int}(x)) for x in conjugacy_class(S, thetap)]
-        #CC = 
         flooptime = time()
-		tuple_prod= Iterators.product(outer_structure..., [makeRCI(k, cc[k]) for k in keys(cc)]..., PP...)
-        #tuple_prod= Iterators.product(outer_structure..., [makeRCI(k, cc[k]) for k in keys(cc)]...)
+		#tuple_prod= Iterators.product(outer_structure..., [makeRCI(k, cc[k]) for k in keys(cc)]..., PP...)
+        tuple_prod = Iterators.product(outer_structure..., [1:makeRCI(k,cc[k]).Length for k in keys(cc)]..., PP...)
+        #tuple_prod = Iterators.product(outer_structure..., PP...)
         @floop for thetatuple in tuple_prod
+        #for thetatuple in tuple_prod
+                #sleep(0.01)
             # thetatuple is a tuple with the first length(cc) being the big blocks and the remaining elements the "regular_combination_tuples"
-            # we need 
             block_parts = deepcopy(thetatuple[1:length(keys(cc))])
-            #println(block_parts)
-            v_parts = deepcopy([x for x in thetatuple[(length(keys(cc))+1):(end-length(part))]])
-            #v_parts = deepcopy([x for x in thetatuple[(length(keys(cc))+1):end]])
+            #index = thetatuple[(1+length(keys(cc))):end]
+            vindex = thetatuple[(length(keys(cc))+1):(end-length(part))]
             index = thetatuple[(1+end- length(part)):end]
-            #println(index)
+            #v_parts = deepcopy([x for x in thetatuple[(length(keys(cc))+1):(end-length(part))]])
+            v_parts = [unrank_reg_combo(vindex[i], blocklengths[i], K[i]) for i in 1:length(vindex)]
             #println(v_parts)
+            #flush(stdout)
+            #for v_parts in Iterators.product([makeRCI(k,cc[k]) for k in keys(cc)]...)
             N = [1:n;]
             t_parts = Vector{Vector{Int}}[]
             for i in 1:length(keys(cc))
@@ -117,34 +115,23 @@ function get_phi_candidates_v1(n::Int, part::Vector{Int}, g::Int, psitemp::Vecto
                 N = N[filter(x -> block_parts[i][x] == 0, eachindex(block_parts[i]))]
             end
             theta_part = vcat(t_parts...)
-            #print("checking lengths match: ")
-            #println(string(length(theta_part == length(part))))
-            #println(string(theta_part))
-            #println(string(part))
-            #println(index)
             decomp = deepcopy(perm_components(theta_part, n))
-            #PP = perm_counter([length(theta_part[i]) for i in 1:length(theta_part)])
-            #for index in Iterators.product(PP...)
-                        theta = make_perm(decomp[1],decomp[2], decomp[3], index)
-                        #println(theta)
-                        #flush(stdout)
-                        phi = psi^(-1)*theta^(-1)
-                        if length(cycles(phi)) == n_phi_cycles
-                                is_min =1
-			                    for g in HH
-				                        if (theta^g).d < theta.d
-					                            is_min=0
-					                            break
-				                        end
-			                    end
-			                    if is_min ==1
-					                    push!(outlist[Threads.threadid()], phi)
-				                end
-			            end
+            theta = make_perm(decomp[1],decomp[2], decomp[3], index)
+            phi = theta^(-1)*p_inv
+            if length(cycles(phi)) == n_phi_cycles
+                is_min =1
+		        for g in HH
+		            if (theta^g).d < theta.d
+		                is_min=0
+		                break
+		            end
+		        end
+		        if is_min ==1
+		            push!(outlist[Threads.threadid()], phi)
+		        end
+		    end
             #end
 		end
-        #println("floop time = ")
-        #println(string(time()-flooptime))
 		return([Perm(Vector{Int}(sigma)), reduce(vcat,outlist)])
 	end
 end
