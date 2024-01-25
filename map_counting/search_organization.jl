@@ -58,7 +58,7 @@ function make_default_perm(in_partition::Vector{Int})
 		push!(defperm, [Counter:Counter+in_partition[i]-1;])
 		Counter = Counter+in_partition[i]
 	end
-	println(typeof(defperm))
+	#println(typeof(defperm))
 	flush(stdout)
 	return(defperm)
 end
@@ -69,10 +69,10 @@ function get_ghat_minseps(g::Int, ghat::Int)
 		x = time()
 		push!(ghat_minseps, get_ghat_minseps_edges(g, ghat, E))
 		println(string(E))
-		flush(stdout)
-        #println("E edges time =")
-		#println(string(time()-x))
 		#flush(stdout)
+        	println("E edges time =")
+		println(string(time()-x))
+		flush(stdout)
 	end
 	ghat_minseps = reduce(vcat, ghat_minseps)
 	return(ghat_minseps)
@@ -136,6 +136,8 @@ function generate_minseps_genus(g::Int)
 		biggerlist = []
 		for x in glist
 			templist = [[x[1], i] for i in x[2]]
+            #println(string(length(templist)))
+            flush(stdout)
 			push!(biggerlist, templist)
 		end
 		gbiglist = reduce(vcat,biggerlist)
@@ -145,30 +147,30 @@ function generate_minseps_genus(g::Int)
 	return(reduce(vcat,total_minseps))
 end
 
-# Returns the conjugacy class of a permutation as a list of cycle lengths
-function conjclass(x::Perm{Int})
-	return(sort([length(i) for i in cycles(x)]))
-end
-
-function solve_conjugation(x::Perm{Int}, y::Perm{Int}, n)
-           VV = reduce(vcat,sort([cycles(x)[i] for i in 1:length(cycles(x))], by=length))
-           WW = reduce(vcat,sort([cycles(y)[i] for i in 1:length(cycles(x))], by=length))
-           x_cyc_type = sort([length(cycles(x)[i]) for i in 1:length(cycles(x))])
-           y_cyc_type = sort([length(cycles(y)[i]) for i in 1:length(cycles(y))])
-           if x_cyc_type != y_cyc_type
-               return(0)
-           else
-               tau = zeros(Int, n)
-               for i in 1:n
-                   tau[VV[i]] =WW[i]
-               end
-               t = Perm(tau)
-               if t^-1 * x * t != y
-                   println("OH NO!")
-               end
-               return(t)
-           end
-end
+## Returns the conjugacy class of a permutation as a list of cycle lengths
+#function conjclass(x::Perm{Int})
+#	return(sort([length(i) for i in cycles(x)]))
+#end
+#
+#function solve_conjugation(x::Perm{Int}, y::Perm{Int}, n)
+#           VV = reduce(vcat,sort([cycles(x)[i] for i in 1:length(cycles(x))], by=length))
+#           WW = reduce(vcat,sort([cycles(y)[i] for i in 1:length(cycles(x))], by=length))
+##           x_cyc_type = sort([length(cycles(x)[i]) for i in 1:length(cycles(x))])
+#           y_cyc_type = sort([length(cycles(y)[i]) for i in 1:length(cycles(y))])
+#           if x_cyc_type != y_cyc_type
+#               return(0)
+#           else
+#               tau = zeros(Int, n)
+#               for i in 1:n
+#                   tau[VV[i]] =WW[i]
+#               end
+#               t = Perm(tau)
+#               if t^-1 * x * t != y
+#                   println("OH NO!")
+#               end
+#               return(t)
+#           end
+#end
 
 # Takes a hypermap as input and determines if color-swapping is an isomorphism
 #function is_self_dual(x::Perm{Int}, y::Perm{Int})

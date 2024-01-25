@@ -102,8 +102,8 @@ function unrank_reg_combo(r::Int, n::Int, k::Int)
                 println("error k does not divide n")
                 return([0])
         elseif n <=k
-                println("n=0")
-                return([1:k;])
+                #println("n=0")
+                return([[1:k;]])
         else
                 Q = div(factorial(n-k), factorial(c-1)*(factorial(k)^(c-1)))
                 if Q ==0
