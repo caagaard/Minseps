@@ -64,17 +64,17 @@ function make_default_perm(in_partition::Vector{Int})
 end
 
 function get_ghat_minseps(g::Int, ghat::Int)
-	ghat_minseps = []
+	big_ghat_minseps = []
 	for E in (g+ghat+1):(2*(g+ghat))
 		x = time()
-		push!(ghat_minseps, get_ghat_minseps_edges(g, ghat, E))
+		push!(big_ghat_minseps, get_ghat_minseps_edges(g, ghat, E))
 		println(string(E))
 		#flush(stdout)
         	println("E edges time =")
 		println(string(time()-x))
 		flush(stdout)
 	end
-	ghat_minseps = reduce(vcat, ghat_minseps)
+	ghat_minseps = reduce(vcat, big_ghat_minseps)
 	return(ghat_minseps)
 end
 
@@ -97,7 +97,7 @@ function get_ghat_minseps_edges(g::Int, ghat::Int, E::Int)
 				outs = reduce(vcat,tempouts)
 				# Need to make psi into an actual Perm{Int} object now:
 				S = symmetric_group(E)
-				push!(ghat_minseps_E, [Perm(Vector{Int}(cperm(S,psi...))), outs])
+				push!(ghat_minseps_E, [[Perm(Vector{Int}(cperm(S,psi...))), phi] for phi in outs])
 			end
 		else
 				phi_cycles = conj_class_nums[4]
@@ -107,21 +107,27 @@ function get_ghat_minseps_edges(g::Int, ghat::Int, E::Int)
 					#println(psi)
 					#flush(stdout)
 					outs = get_phi_candidates_v2(E, phi_cycles, ghat, psi)
-					push!(ghat_minseps_E, outs)
+					push!(ghat_minseps_E, [[outs[1],phi] for phi in outs[2]])
 				end
 		end
 	end
-	Counter = 0
-	for psi_choice in ghat_minseps_E
-		if length(psi_choice) == 2
-			Counter = Counter+length(psi_choice[2])
-		else
-			println("unexpected array length")
-			println(length(psi_choice))
-		end
+	ghat_minseps_E = reduce(vcat, ghat_minseps_E)
+	if g-ghat > 1
+		return([x for x in ghat_minseps_E if is_transitive_pair(x)])
+	else
+		return(ghat_minseps_E)
 	end
+	#Counter = 0
+	#for psi_choice in ghat_minseps_E
+	#	if length(psi_choice) == 2
+	#		Counter = Counter+length(psi_choice[2])
+	#	else
+	#		println("unexpected array length")
+	#		println(length(psi_choice))
+	#	end
+	#end
 	flush(stdout)
-	return(ghat_minseps_E)
+	#return(ghat_minseps_E)
 end
 
 
@@ -133,16 +139,16 @@ function generate_minseps_genus(g::Int)
 		println(string(ghat))
 		flush(stdout)
 		glist = get_ghat_minseps(g,ghat)
-		biggerlist = []
-		for x in glist
-			templist = [[x[1], i] for i in x[2]]
+		#biggerlist = []
+		#for x in glist
+			#templist = [[x[1], i] for i in x[2]]
             #println(string(length(templist)))
-            flush(stdout)
-			push!(biggerlist, templist)
-		end
-		gbiglist = reduce(vcat,biggerlist)
-		ghypermaps = [permpair for permpair in gbiglist if is_transitive_pair(permpair)]
-		push!(total_minseps, ghypermaps)
+            #flush(stdout)
+			#push!(biggerlist, templist)
+		#end
+		#gbiglist = reduce(vcat,biggerlist)
+		#ghypermaps = [permpair for permpair in gbiglist if is_transitive_pair(permpair)]
+		push!(total_minseps, glist)
 	end
 	return(reduce(vcat,total_minseps))
 end
