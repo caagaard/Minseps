@@ -67,7 +67,7 @@ function get_phi_candidates_v2(n::Int,k::Int,g::Int, psitemp::Vector{Vector{Int}
                 #println("floop time = ")
                 #println(string(time()-flooptime))
         end     
-        return([Perm(Vector{Int}(sigma)), reduce(append!,outlist)])
+        return([Perm(Vector{Int}(sigma)), reduce(vcat,outlist)])
 end 
 
 function get_phi_candidates_v1(n::Int, part::Vector{Int}, g::Int, psitemp::Vector{Vector{Int}}, n_phi_cycles::Int)
@@ -131,6 +131,6 @@ function get_phi_candidates_v1(n::Int, part::Vector{Int}, g::Int, psitemp::Vecto
 		    end
             #end
 		end
-		return([Perm(Vector{Int}(sigma)), reduce(append!,outlist)])
+		return([Perm(Vector{Int}(sigma)), reduce(vcat,outlist)])
 	end
 end

@@ -74,7 +74,7 @@ function get_ghat_minseps(g::Int, ghat::Int)
 		println(string(time()-x))
 		flush(stdout)
 	end
-	ghat_minseps = reduce(append!, big_ghat_minseps)
+	ghat_minseps = reduce(vcat, big_ghat_minseps)
 	return(ghat_minseps)
 end
 
@@ -94,7 +94,7 @@ function get_ghat_minseps_edges(g::Int, ghat::Int, E::Int)
 				for theta_choice in theta_choices
 					push!(tempouts, get_phi_candidates_v1(E,theta_choice, ghat, psi, (conj_class_nums[4]))[2])
 				end
-				outs = reduce(append!,tempouts)
+				outs = reduce(vcat,tempouts)
 				# Need to make psi into an actual Perm{Int} object now:
 				S = symmetric_group(E)
 				push!(ghat_minseps_E, [[Perm(Vector{Int}(cperm(S,psi...))), phi] for phi in outs])
@@ -111,7 +111,7 @@ function get_ghat_minseps_edges(g::Int, ghat::Int, E::Int)
 				end
 		end
 	end
-	ghat_minseps_E = reduce(append!, ghat_minseps_E)
+	ghat_minseps_E = reduce(vcat, ghat_minseps_E)
 	if g-ghat > 1
 		return([x for x in ghat_minseps_E if is_transitive_pair(x)])
 	else
@@ -150,7 +150,7 @@ function generate_minseps_genus(g::Int)
 		#ghypermaps = [permpair for permpair in gbiglist if is_transitive_pair(permpair)]
 		push!(total_minseps, glist)
 	end
-	return(reduce(append!,total_minseps))
+	return(reduce(vcat,total_minseps))
 end
 
 ## Returns the conjugacy class of a permutation as a list of cycle lengths
@@ -250,6 +250,6 @@ function minseps_list_to_graphs(minsep_list::Vector{Vector{Perm{Int}}}, g::Int)
         end
         # Need to deal with edge countness
         final_graphs = [getIsoClasses(sorted_graphs_list[e]) for e in 1:length(sorted_graphs_list)]
-        fgs = reduce(append!, final_graphs)
+        fgs = reduce(vcat, final_graphs)
         return(fgs)
 end
