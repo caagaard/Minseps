@@ -35,10 +35,7 @@ function get_phi_candidates_v2(n::Int,k::Int,g::Int, psitemp::Vector{Vector{Int}
 	H = centralizer(S,sigma)
 	HH = [Perm(Vector{Int}(x)) for x in H[1]]
         parts = [part for part in Combinatorics.partitions([Int(1):Int(n);],k)]
-	outlist = []
-	for i in 1:Threads.nthreads()
-		push!(outlist, [])
-	end
+	outlist = [Perm{Int}[] for i in 1:Threads.nthreads()]
         for part in parts
                 decomp = perm_components(part,Int(n))
                 #PP = perm_counter([length(x) for x in part])
@@ -80,33 +77,21 @@ function get_phi_candidates_v1(n::Int, part::Vector{Int}, g::Int, psitemp::Vecto
 		p_inv = Perm(Vector{Int}(sigma^(-1)))
 		H = centralizer(S,sigma)
 		HH = [Perm(Vector{Int}(x)) for x in H[1]]
-		outlist = []
-		for i in 1:Threads.nthreads()
-			push!(outlist, [])
-		end
-
+		outlist = [Perm{Int}[] for i in 1:Threads.nthreads()]
         cc= counter(part)
         blocklengths=[k*cc[k] for k in keys(cc)]
         K = [k for k in keys(cc)]
         outer_structure = [colex_bitstring(n - sum(blocklengths[1:i-1]), blocklengths[i]) for i in 1:length(blocklengths)]
         PP = perm_counter(vcat([[k for i in 1:cc[k]] for k in keys(cc)]...))
         flooptime = time()
-		#tuple_prod= Iterators.product(outer_structure..., [makeRCI(k, cc[k]) for k in keys(cc)]..., PP...)
         tuple_prod = Iterators.product(outer_structure..., [1:makeRCI(k,cc[k]).Length for k in keys(cc)]..., PP...)
-        #tuple_prod = Iterators.product(outer_structure..., PP...)
         @floop for thetatuple in tuple_prod
         #for thetatuple in tuple_prod
-                #sleep(0.01)
             # thetatuple is a tuple with the first length(cc) being the big blocks and the remaining elements the "regular_combination_tuples"
             block_parts = deepcopy(thetatuple[1:length(keys(cc))])
-            #index = thetatuple[(1+length(keys(cc))):end]
             vindex = thetatuple[(length(keys(cc))+1):(end-length(part))]
             index = thetatuple[(1+end- length(part)):end]
-            #v_parts = deepcopy([x for x in thetatuple[(length(keys(cc))+1):(end-length(part))]])
             v_parts = [unrank_reg_combo(vindex[i], blocklengths[i], K[i]) for i in 1:length(vindex)]
-            #println(v_parts)
-            #flush(stdout)
-            #for v_parts in Iterators.product([makeRCI(k,cc[k]) for k in keys(cc)]...)
             N = [1:n;]
             t_parts = Vector{Vector{Int}}[]
             for i in 1:length(keys(cc))
