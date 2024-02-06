@@ -31,14 +31,12 @@ function get_phi_candidates_v2(n::Int,k::Int,g::Int, psitemp::Vector{Vector{Int}
 	sigma = cperm(S, psitemp...)
 	psi = Perm(Vector{Int}(sigma))
 	needed_verts = n-k -length(cycles(psi))+2 - 2*g
-	#println(psi)
 	H = centralizer(S,sigma)
 	HH = [Perm(Vector{Int}(x)) for x in H[1]]
         parts = [part for part in Combinatorics.partitions([Int(1):Int(n);],k)]
 	outlist = [Perm{Int}[] for i in 1:Threads.nthreads()]
         for part in parts
                 decomp = perm_components(part,Int(n))
-                #PP = perm_counter([length(x) for x in part])
                 PP = perm_counter([length(part[i]) for i in 1:length(part)])
                 flooptime = time()
                 @floop for index in Iterators.product(PP...)
@@ -61,8 +59,6 @@ function get_phi_candidates_v2(n::Int,k::Int,g::Int, psitemp::Vector{Vector{Int}
 				end
 			end
                 end     
-                #println("floop time = ")
-                #println(string(time()-flooptime))
         end     
         return([Perm(Vector{Int}(sigma)), reduce(vcat,outlist)])
 end 
@@ -86,7 +82,6 @@ function get_phi_candidates_v1(n::Int, part::Vector{Int}, g::Int, psitemp::Vecto
         flooptime = time()
         tuple_prod = Iterators.product(outer_structure..., [1:makeRCI(k,cc[k]).Length for k in keys(cc)]..., PP...)
         @floop for thetatuple in tuple_prod
-        #for thetatuple in tuple_prod
             # thetatuple is a tuple with the first length(cc) being the big blocks and the remaining elements the "regular_combination_tuples"
             block_parts = deepcopy(thetatuple[1:length(keys(cc))])
             vindex = thetatuple[(length(keys(cc))+1):(end-length(part))]
@@ -114,7 +109,6 @@ function get_phi_candidates_v1(n::Int, part::Vector{Int}, g::Int, psitemp::Vecto
 		            push!(outlist[Threads.threadid()], phi)
 		        end
 		    end
-            #end
 		end
 		return([Perm(Vector{Int}(sigma)), reduce(vcat,outlist)])
 	end
