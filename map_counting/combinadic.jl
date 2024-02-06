@@ -165,17 +165,15 @@ function permutation_next(n, v::Vector{Int})
         return(v)
 end
 
-function colex_bitstring(n,k)#,v::Vector{Int})
+function colex_bitstring(n::Int,k::Int)#,v::Vector{Int})
         if k==0
                 return([zeros(Int, n-k)])
         else
-                #if v == [ones(Int,k)..., zeros(Int, n-k)...]
-                        #return(v)
                 if k < n
                         l1 = [vcat([0], C) for C in colex_bitstring(n-1, k)]
                         
                 else
-                        l1 = []
+                        l1 = Vector{Int64}[]
                 end
                 l2 = [vcat([1], C) for C in colex_bitstring(n-1,k-1)]
                 l = vcat(l1, l2)
