@@ -35,10 +35,7 @@ function get_phi_candidates_v2(n::Int,k::Int,g::Int, psitemp::Vector{Vector{Int}
 	H = centralizer(S,sigma)
 	HH = [Perm(Vector{Int}(x)) for x in H[1]]
         parts = [part for part in Combinatorics.partitions([Int(1):Int(n);],k)]
-	outlist = []
-	for i in 1:Threads.nthreads()
-		push!(outlist, [])
-	end
+	outlist = [Perm{Int}[] for i in 1:Threads.nthreads()]
         for part in parts
                 decomp = perm_components(part,Int(n))
                 #PP = perm_counter([length(x) for x in part])
@@ -80,11 +77,7 @@ function get_phi_candidates_v1(n::Int, part::Vector{Int}, g::Int, psitemp::Vecto
 		p_inv = Perm(Vector{Int}(sigma^(-1)))
 		H = centralizer(S,sigma)
 		HH = [Perm(Vector{Int}(x)) for x in H[1]]
-		outlist = []
-		for i in 1:Threads.nthreads()
-			push!(outlist, [])
-		end
-
+		outlist = [Perm{Int}[] for i in 1:Threads.nthreads()]
         cc= counter(part)
         blocklengths=[k*cc[k] for k in keys(cc)]
         K = [k for k in keys(cc)]
@@ -114,7 +107,12 @@ function get_phi_candidates_v1(n::Int, part::Vector{Int}, g::Int, psitemp::Vecto
                 N = N[filter(x -> block_parts[i][x] == 0, eachindex(block_parts[i]))]
             end
             theta_part = vcat(t_parts...)
+	    println(theta_part)
+	    println(typeof(theta_part))
+	    flush(stdout)
             decomp = deepcopy(perm_components(theta_part, n))
+	    println(decomp)
+	    flush(stdout)
             theta = make_perm(decomp[1],decomp[2], decomp[3], index)
             phi = theta^(-1)*p_inv
             if length(cycles(phi)) == n_phi_cycles
