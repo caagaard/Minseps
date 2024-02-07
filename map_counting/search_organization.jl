@@ -61,7 +61,7 @@ function make_default_perm(in_partition::Vector{Int})
 end
 
 function get_ghat_minseps(g::Int, ghat::Int)
-	big_ghat_minseps = []
+	big_ghat_minseps = Vector{Vector{Perm{Int}}}[]
 	for E in (g+ghat+1):(2*(g+ghat))
 		x = time()
 		push!(big_ghat_minseps, get_ghat_minseps_edges(g, ghat, E))
@@ -78,7 +78,7 @@ end
 # Find minimal separating ribbon graphs with ribbon graph genus ghat and e edges
 # Specialized version of get_ghat_minseps to be more easily split up for long calculations on multiple nodes
 function get_ghat_minseps_edges(g::Int, ghat::Int, E::Int)
-	ghat_minseps_E = []
+	ghat_minseps_E = Vector{Perm{Int}}[]
 	needed_vertices = 2+g-ghat
 	for i in 1:div(needed_vertices,2)
 		conj_class_nums = get_class_candidates(g, ghat, E, i)
@@ -87,25 +87,24 @@ function get_ghat_minseps_edges(g::Int, ghat::Int, E::Int)
 			theta_choices = conj_class_nums[3]
 			for psi_choice in psi_choices
 				psi = make_default_perm(psi_choice)
-				tempouts = []
 				for theta_choice in theta_choices
-					push!(tempouts, get_phi_candidates_v1(E,theta_choice, ghat, psi, (conj_class_nums[4]))[2])
+					append!(ghat_minseps_E, [x for x in get_phi_candidates_thread(E,theta_choice, ghat, psi, (conj_class_nums[4]))])
 				end
-				outs = reduce(vcat,tempouts)
+				#outs = reduce(vcat,tempouts)
 				# Need to make psi into an actual Perm{Int} object now:
-				S = symmetric_group(E)
-				push!(ghat_minseps_E, [[Perm(Vector{Int}(cperm(S,psi...))), phi] for phi in outs])
+				#S = symmetric_group(E)
+				#append!(ghat_minseps_E, [x for x in outs])
 			end
 		else
 				phi_cycles = conj_class_nums[4]
 				for psi_choice in psi_choices
 					psi = make_default_perm(psi_choice)
 					outs = get_phi_candidates_v2(E, phi_cycles, ghat, psi)
-					push!(ghat_minseps_E, [[outs[1],phi] for phi in outs[2]])
+					append!(ghat_minseps_E, [x for x in outs])
 				end
 		end
 	end
-	ghat_minseps_E = reduce(vcat, ghat_minseps_E)
+	#ghat_minseps_E = reduce(vcat, ghat_minseps_E)
 	if g-ghat > 1
 		return([x for x in ghat_minseps_E if is_transitive_pair(x)])
 	else
