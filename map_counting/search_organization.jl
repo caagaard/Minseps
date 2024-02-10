@@ -31,9 +31,6 @@ function get_class_candidates(g::Int, ghat::Int, E::Int, i::Int)
 	n_psi = sum([conj_class_size(part) for part in psi_candidates])
 	n_phi = sum([conj_class_size(part) for part in phi_candidates])
 	n_theta = sum([conj_class_size(part) for part in theta_candidates])
-	#Z = [length(psi_candidates)*n_phi, length(psi_candidates)*n_theta, length(phi_candidates)*n_psi, length(phi_candidates)*n_theta, length(theta_candidates)*n_psi, length(theta_candidates)*n_phi]
-	#println(string(Z))
-	#flush(stdout)
 	if n_psi*length(phi_candidates) >= n_phi*length(psi_candidates)
 		if n_phi > n_theta
 			theta_flag = 1
@@ -64,24 +61,24 @@ function make_default_perm(in_partition::Vector{Int})
 end
 
 function get_ghat_minseps(g::Int, ghat::Int)
-	ghat_minseps = []
+	big_ghat_minseps = Vector{Vector{Perm{Int}}}[]
 	for E in (g+ghat+1):(2*(g+ghat))
 		x = time()
-		push!(ghat_minseps, get_ghat_minseps_edges(g, ghat, E))
+		push!(big_ghat_minseps, get_ghat_minseps_edges(g, ghat, E))
 		println(string(E))
 		#flush(stdout)
         	println("E edges time =")
 		println(string(time()-x))
 		flush(stdout)
 	end
-	ghat_minseps = reduce(vcat, ghat_minseps)
+	ghat_minseps = reduce(vcat, big_ghat_minseps)
 	return(ghat_minseps)
 end
 
 # Find minimal separating ribbon graphs with ribbon graph genus ghat and e edges
 # Specialized version of get_ghat_minseps to be more easily split up for long calculations on multiple nodes
 function get_ghat_minseps_edges(g::Int, ghat::Int, E::Int)
-	ghat_minseps_E = []
+	ghat_minseps_E = Vector{Perm{Int}}[]
 	needed_vertices = 2+g-ghat
 	for i in 1:div(needed_vertices,2)
 		conj_class_nums = get_class_candidates(g, ghat, E, i)
@@ -90,38 +87,30 @@ function get_ghat_minseps_edges(g::Int, ghat::Int, E::Int)
 			theta_choices = conj_class_nums[3]
 			for psi_choice in psi_choices
 				psi = make_default_perm(psi_choice)
-				tempouts = []
 				for theta_choice in theta_choices
-					push!(tempouts, get_phi_candidates_v1(E,theta_choice, ghat, psi, (conj_class_nums[4]))[2])
+					append!(ghat_minseps_E, [x for x in get_phi_candidates_thread(E,theta_choice, ghat, psi, (conj_class_nums[4]))])
 				end
-				outs = reduce(vcat,tempouts)
+				#outs = reduce(vcat,tempouts)
 				# Need to make psi into an actual Perm{Int} object now:
-				S = symmetric_group(E)
-				push!(ghat_minseps_E, [Perm(Vector{Int}(cperm(S,psi...))), outs])
+				#S = symmetric_group(E)
+				#append!(ghat_minseps_E, [x for x in outs])
 			end
 		else
 				phi_cycles = conj_class_nums[4]
 				for psi_choice in psi_choices
 					psi = make_default_perm(psi_choice)
-					#println("psi = ")
-					#println(psi)
-					#flush(stdout)
 					outs = get_phi_candidates_v2(E, phi_cycles, ghat, psi)
-					push!(ghat_minseps_E, outs)
+					append!(ghat_minseps_E, [x for x in outs])
 				end
 		end
 	end
-	Counter = 0
-	for psi_choice in ghat_minseps_E
-		if length(psi_choice) == 2
-			Counter = Counter+length(psi_choice[2])
-		else
-			println("unexpected array length")
-			println(length(psi_choice))
-		end
+	#ghat_minseps_E = reduce(vcat, ghat_minseps_E)
+	if g-ghat > 1
+		return([x for x in ghat_minseps_E if is_transitive_pair(x)])
+	else
+		return(ghat_minseps_E)
 	end
 	flush(stdout)
-	return(ghat_minseps_E)
 end
 
 
@@ -133,79 +122,15 @@ function generate_minseps_genus(g::Int)
 		println(string(ghat))
 		flush(stdout)
 		glist = get_ghat_minseps(g,ghat)
-		biggerlist = []
-		for x in glist
-			templist = [[x[1], i] for i in x[2]]
-            #println(string(length(templist)))
-            flush(stdout)
-			push!(biggerlist, templist)
-		end
-		gbiglist = reduce(vcat,biggerlist)
-		ghypermaps = [permpair for permpair in gbiglist if is_transitive_pair(permpair)]
-		push!(total_minseps, ghypermaps)
+		push!(total_minseps, glist)
 	end
 	return(reduce(vcat,total_minseps))
 end
 
-## Returns the conjugacy class of a permutation as a list of cycle lengths
-#function conjclass(x::Perm{Int})
-#	return(sort([length(i) for i in cycles(x)]))
-#end
-#
-#function solve_conjugation(x::Perm{Int}, y::Perm{Int}, n)
-#           VV = reduce(vcat,sort([cycles(x)[i] for i in 1:length(cycles(x))], by=length))
-#           WW = reduce(vcat,sort([cycles(y)[i] for i in 1:length(cycles(x))], by=length))
-##           x_cyc_type = sort([length(cycles(x)[i]) for i in 1:length(cycles(x))])
-#           y_cyc_type = sort([length(cycles(y)[i]) for i in 1:length(cycles(y))])
-#           if x_cyc_type != y_cyc_type
-#               return(0)
-#           else
-#               tau = zeros(Int, n)
-#               for i in 1:n
-#                   tau[VV[i]] =WW[i]
-#               end
-#               t = Perm(tau)
-#               if t^-1 * x * t != y
-#                   println("OH NO!")
-#               end
-#               return(t)
-#           end
-#end
-
-# Takes a hypermap as input and determines if color-swapping is an isomorphism
-#function is_self_dual(x::Perm{Int}, y::Perm{Int})
-#	isdual = 0
-#	if conjclass(x) != conjclass(y)
-#		return(0)
-#	end
-#	E = sum(conjclass(x))
-#	t = solve_conjugation(x,y,E)
-#	S = symmetric_group(E)
-#	psi = perm(S, [x[i] for i in 1:E])
-#	phi = perm(S, [y[i] for i in 1:E])
-#	rho = perm(S, [t[i] for i in 1:E])
-#	H = centralizer(S, psi)[1]
-#	for h in H
-#		if (rho^(-1)*h^(-1)*phi*h*rho) == psi
-#			isdual = 1
-#			return(isdual)
-#		end
-#	end
-#	return(isdual)
-#end
-
 function count_embeds(hypermap_list::Vector{Vector{Perm{Int}}})
     tempcount = length(hypermap_list)
     for hypermap in hypermap_list
-	#if conjclass(hypermap[1]) != conjclass(hypermap[2])
-	#	tempcount = tempcount +1
-        #elseif is_self_color_dual(hypermap[1], hypermap[2]) == 1
-	#	tempcount = tempcount +1
 	if length(cycles(hypermap[1])) == length(cycles(hypermap[2]))
-		#if conjclass(hypermap[1]) != conjclass(hypermap[2])
-		#	println("was it double counted?")
-		#	println(hypermap)
-		#end
 		if is_self_color_dual(hypermap[1], hypermap[2]) == 0
 			tempcount= tempcount -0.5
 		end
