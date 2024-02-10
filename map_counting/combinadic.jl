@@ -38,23 +38,34 @@ function combination_tuple_next(v::Vector{Vector{Int}}, length_vec::Vector{Int})
         return(v)
 end
 
-function regular_combination_next!(v::Vector{Vector{Int}}, k::Int)
+# Given a vector of k-subsets of [N], [N-k], [N-2k],... computes the next such vector in lex order
+function regular_combination_next!(v::Vector{Vector{Int}}, k::Int, N::Int)
         n = length(v)*k
-        length_vec = [n:-k:k;]
+        length_vec = [N:-k:(N-(length(v)-1)*k);]
+        if v == [[1+N-n;length_vec[i]+2-k:length_vec[i];] for i in 1:length(length_vec)]
+                return(v,1)
+        end
         for i in length(v):-1:1
-                if v[i] != [1; length_vec[i]+2-k:length_vec[i];]
-                        #println(i)
+                if i == length(v)
+                        firstval = 1+length_vec[i]-k
+                else
+                        firstval = 1+length_vec[i]-k*(1+length(v)-i)
+                end
+                if v[i] != [firstval; length_vec[i]+2-k:length_vec[i];]
                         v[i] = combination_next(length_vec[i],k, v[i])
+                        for j in i+1:length(v)
+                                v[j] = [v[j-1][1]: v[j-1][1]+k-1;]
+                        end
                         #if i > 1 && i <length(v)
                          #       if (length(v[i]) == length(v[i-1]) && v[i][1] < v[i-1][1]) || (length(v[i]) ==length(v[i+1]) && v[i][1] > v[i+1][1])
                          #               return(combination_tuple_next(v, length_vec))
                          #       end
                         #end
-                        return(v)
+                        return(v,0)
                 end
-                v[i] = [1:k;]
+                #v[i] = [1:k;]
         end
-        return(v)
+        return(v,0)
 end
 
 struct RegularCombinationIterator{T}
@@ -96,6 +107,39 @@ function makeRCI(l::Int, r::Int)
         return(RegularCombinationIterator([[1:l;] for i in 1:r], [[1:l;] for i in 1:r], l, r, L))
 end
 
+function unrank_combo_partition(r::Int, n::Int, K::Vector{Int}, mults::Vector{Int})
+        if length(K) != length(mults)
+                println("K does not match mults")
+                return([[0]])
+        end
+        if n != sum([K[i]*mults[i] for i in 1:length(K)])
+                println("error not a valid cycle type")
+                return([[0]])
+        elseif length(K)==1 && mults ==[1]
+                return([[1:K[1];]])
+        else
+                qdenom =1
+                        for i in 1:length(K)
+                                qdenom = qdenom * factorial(mults[i]-1)*(factorial(K[i])^(mults[i]-1))
+                        end
+                Q = div(factorial(n-K[1]), qdenom)
+                if Q ==0
+                        println("yikes!")
+                        return([[1]])
+                else
+                        Rone = div(r-1, Q)
+                        Rtwo = r-Q*Rone
+                        w = combination_unrank(Rone+1, n,K[1])
+                        if mults[1] ==1
+                                return([w, unrank_combo_partition(Rtwo, n-K[1], K[2:end], mults[2:end])...])
+                        else
+                                return([w, unrank_combo_partition(Rtwo, n-K[1], K, [mults[1]-1, mults[2:end]...])...])
+                        end
+                end
+        end
+end
+
+#This version unranks regular combinations, need to adapt to list of disjoint k-subsets
 function unrank_reg_combo(r::Int, n::Int, k::Int)
         c = div(n,k)
         if c*k != n
@@ -167,7 +211,7 @@ end
 
 function colex_bitstring(n::Int,k::Int)#,v::Vector{Int})
         if k==0
-                return([zeros(Int, n-k)])
+                return([zeros(Int, n)])
         else
                 if k < n
                         l1 = [vcat([0], C) for C in colex_bitstring(n-1, k)]
@@ -181,25 +225,26 @@ function colex_bitstring(n::Int,k::Int)#,v::Vector{Int})
         end
 end
 
-function conj_class_iter(n::Int, lambda::Vector{Int})
-        #make dictionary assigns to each distinct value in lambda its multiplicity
-        #l_mult = 
-
-        #Chunk sizes - [l*mult(l) for each distinct l in lambda]
-
-        #Construct default splitting and all perms within that splitting
-        # We use combination_tuple_next on each chunk to get all the ways to split up the chunk and then go through the permutations from each split chunk
-        # This will involve populating an array with a bunch of deepcopies.  We can initialize with appropriate size
-        # Need to work out types of elements and number of elements
-
-        #temporarily, rather than doings perms w/in a splitting, we'll just look at the partitions
-#        N_combo_tuples = 
-#        def_perms = 
-
-        #Make list of chunkings (might need to recurse here)
-
-        # Assign chunkings to each thread.  Within each chunking iterate of perm list and transform each to match the chunking
-
+# input should be n (size of symmetric group) sigma a vector of vectors with entries ordered by decreasing length , and increasing first element within entries of the same length.  Within each 
+# length block, the entries of the vectors should be integers in {1,... k} where k is the sum of the lengths of vectors in this block and all following blocks
+# For now we're just going to iterate to the next cycle partition in the conjugacy class and handle the perm business later
+function conj_class_next!(n::Int, sigma::Vector{Vector{Int}}, lambda::Vector{Int})
+        chunk_track=0
+        i = length(lambda)
+        chunk_end = length(sigma)
+        while i>0
+                current_chunk = sigma[1+chunk_end - lambda[i] : chunk_end]
+                t =  regular_combination_next!(current_chunk, length(current_chunk[1]), n - sum([length(sigma[i]) for i in 1:(chunk_end-lambda[i])]))[2]
+                if t == 0
+                        sigma[1+chunk_end - lambda[i] : chunk_end] = current_chunk
+                        return(sigma, 0)
+                else
+                        sigma[1+chunk_end - lambda[i] : chunk_end] = [[1:length(current_chunk[1]);] for i in 1:lambda[i]]
+                end
+                chunk_end = chunk_end - lambda[i]
+                i = i-1
+        end
+        return(sigma, 1)
 end
 
 function combinations_list(n,k)

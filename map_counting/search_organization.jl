@@ -129,13 +129,16 @@ end
 
 function count_embeds(hypermap_list::Vector{Vector{Perm{Int}}})
     tempcount = length(hypermap_list)
-    for hypermap in hypermap_list
+    self_color_counts = zeros(Threads.nthreads())
+    Threads.@threads for hypermap in hypermap_list
 	if length(cycles(hypermap[1])) == length(cycles(hypermap[2]))
 		if is_self_color_dual(hypermap[1], hypermap[2]) == 0
-			tempcount= tempcount -0.5
+			#tempcount= tempcount -0.5
+            self_color_counts[Threads.nthreads()] += 1
 		end
 	end
     end
+    tempcount = tempcount - 0.5*(sum(self_color_counts))
     return(tempcount)
 end
 function dual_list_to_minseps(dual_list::Vector{Vector{Perm{Int}}})
@@ -147,9 +150,13 @@ function getIsoClasses(graphlist)
         isoclasses = Vector{SimpleGraph}() 
         for graph in graphlist
                 isdupe = 0
-                for G in isoclasses
+                Threads.@threads for G in isoclasses
                         if Graphs.Experimental.has_isomorph(graph, G)==1
                                 isdupe = 1
+                                break
+                        end
+                        #extra check to avoid instability with threads
+                        if isdupe ==1
                                 break
                         end
                 end
