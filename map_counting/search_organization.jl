@@ -32,14 +32,14 @@ function get_class_candidates(g::Int, ghat::Int, E::Int, i::Int)
 	n_phi = sum([conj_class_size(part) for part in phi_candidates])
 	n_theta = sum([conj_class_size(part) for part in theta_candidates])
 	if n_psi*length(phi_candidates) >= n_phi*length(psi_candidates)
-		if n_phi > n_theta
+		if n_phi >= n_theta
 			theta_flag = 1
 		else
 			theta_flag = 0
 		end
 		return(theta_flag, psi_candidates, theta_candidates, j, 0)
 	else
-		if n_psi > n_theta
+		if n_psi >= n_theta
 			theta_flag =1
 		else
 			theta_flag =0
@@ -88,7 +88,7 @@ function get_ghat_minseps_edges(g::Int, ghat::Int, E::Int)
 			for psi_choice in psi_choices
 				psi = make_default_perm(psi_choice)
 				for theta_choice in theta_choices
-					append!(ghat_minseps_E, [x for x in get_phi_candidates_thread(E,theta_choice, ghat, psi, (conj_class_nums[4]))])
+					append!(ghat_minseps_E, [x for x in get_phi_candidates_v1(E,theta_choice, ghat, psi, (conj_class_nums[4]))])
 				end
 				#outs = reduce(vcat,tempouts)
 				# Need to make psi into an actual Perm{Int} object now:
@@ -134,7 +134,7 @@ function count_embeds(hypermap_list::Vector{Vector{Perm{Int}}})
 	if length(cycles(hypermap[1])) == length(cycles(hypermap[2]))
 		if is_self_color_dual(hypermap[1], hypermap[2]) == 0
 			#tempcount= tempcount -0.5
-            self_color_counts[Threads.nthreads()] += 1
+            self_color_counts[Threads.threadid()] += 1
 		end
 	end
     end

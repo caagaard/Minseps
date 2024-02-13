@@ -70,12 +70,12 @@ function get_phi_candidates_v2(n::Int,k::Int,g::Int, psitemp::Vector{Vector{Int}
         return([[Perm(Vector{Int}(sigma)), x] for x in reduce(vcat,outlist)])
 end 
 
-function find_phis(i::Int, avgtload::Int, tload::Int, part::Vector{Int}, cc::Accumulator{Int, Int}, K::Vector{Int}, p_inv::Perm{Int}, HH::Vector{Perm{Int}}, PP::Vector{UnitRange{Int}}, n_phi_cycles::Int, n::Int)
+function find_phis(i::Int, avgtload::Int, tload::Int, part::Vector{Int}, cc::Accumulator{Int, Int}, K::Vector{Int}, p_inv::Perm{Int}, HH::Vector{Perm{Int}}, PP::Vector{UnitRange{Int}}, n_phi_cycles::Int, n::Int, outlist::Vector{Perm{Int}})
         # Need correct start position here, but this will allow for testing
         #inner_struct =  initialize(i)
         #iter_length = makelength(i)
         # need a "next" for conj class element
-        outlist = Perm{}[]
+        #outlist = Perm{}[]
         combo_part = [[1:p;] for p in part]
         j=0
         while j<avgtload*(i-1)
@@ -104,7 +104,7 @@ function find_phis(i::Int, avgtload::Int, tload::Int, part::Vector{Int}, cc::Acc
                 combo_part, iter_done = conj_class_next!(n, combo_part, [cc[k] for k in K])
                 j = j+1
         end
-        return(outlist)
+        #return(outlist)
 end
 
 function get_phi_candidates_v1(n::Int, part::Vector{Int}, g::Int, psitemp::Vector{Vector{Int}}, n_phi_cycles::Int)
@@ -112,12 +112,6 @@ function get_phi_candidates_v1(n::Int, part::Vector{Int}, g::Int, psitemp::Vecto
 		println("Invalid Partition")
 		return([])
 	else
-		S = symmetric_group(n)
-		sigma = cperm(S,psitemp...)
-		p_inv = Perm(Vector{Int}(sigma^(-1)))
-		H = centralizer(S,sigma)
-		HH = [Perm(Vector{Int}(x)) for x in H[1]]
-		outlist = [Perm{Int}[] for i in 1:Threads.nthreads()]
         cc= counter(part)
         K = reverse(sort([k for k in keys(cc)]))
         PP = perm_counter(vcat([[k for i in 1:cc[k]] for k in K]...))
@@ -127,13 +121,22 @@ function get_phi_candidates_v1(n::Int, part::Vector{Int}, g::Int, psitemp::Vecto
         end
         total_load = div(factorial(n), total_load_denom)
         threadload = div(total_load, Threads.nthreads())
+		S = symmetric_group(n)
+		sigma = cperm(S,psitemp...)
+		p_inv = Perm(Vector{Int}(sigma^(-1)))
+		H = centralizer(S,sigma)
+		HH = [Perm(Vector{Int}(x)) for x in H[1]]
+		outlist = [Perm{Int}[] for i in 1:Threads.nthreads()]
+        for i in 1:Threads.nthreads()
+                sizehint!(outlist[i], threadload)
+        end
         #flooptime = time()
         Threads.@threads for i in 1:Threads.nthreads()
                 if i<Threads.nthreads()
-                        outlist[i] = find_phis(i, threadload, threadload, part, cc, K, p_inv, HH, PP, n_phi_cycles, n)
+                        find_phis(i, threadload, threadload, part, cc, K, p_inv, HH, PP, n_phi_cycles, n, outlist[i])
                 else
                         tload = total_load - threadload*(Threads.nthreads()-1)
-                        outlist[i] = find_phis(i, threadload, tload, part, cc, K, p_inv, HH, PP, n_phi_cycles,n)
+                        find_phis(i, threadload, tload, part, cc, K, p_inv, HH, PP, n_phi_cycles,n,outlist[i])
                 end
                 #outlist[i] = Threads.@spawn find_phis(i,tload, part, cc, K, p_inv, HH, PP, n_phi_cycles, n)
         end
