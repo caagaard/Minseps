@@ -1,5 +1,6 @@
 include("perm_utils.jl")
 include("combinadic.jl")
+include("murnaghan_nakayam.jl")
 using Oscar
 using Combinatorics
 using FLoops
@@ -39,7 +40,7 @@ function get_phi_candidates_v2(n::Int,k::Int,g::Int, psitemp::Vector{Vector{Int}
 	H = centralizer(S,sigma)
 	HH = [Perm(Vector{Int}(x)) for x in H[1]]
         parts = [part for part in Combinatorics.partitions([Int(1):Int(n);],k)]
-	outlist = [Perm{Int}[] for i in 1:Threads.nthreads()]
+	outlist = [Vector{Int}[] for i in 1:Threads.nthreads()]
         for part in parts
                 decomp = perm_components(part,Int(n))
                 #PP = perm_counter([length(part[i]) for i in 1:length(part)])
@@ -61,16 +62,16 @@ function get_phi_candidates_v2(n::Int,k::Int,g::Int, psitemp::Vector{Vector{Int}
 						end
 					end
 					if is_min ==1
-						push!(outlist[Threads.threadid()], phi)
+						push!(outlist[Threads.threadid()], phi.d)
 					end
 				end
 			end
                 end     
         end     
-        return([[Perm(Vector{Int}(sigma)), x] for x in reduce(vcat,outlist)])
+        return([[Vector{Int}(sigma), x] for x in reduce(vcat,outlist)])
 end 
 
-function find_phis(i::Int, avgtload::Int, tload::Int, part::Vector{Int}, cc::Accumulator{Int, Int}, K::Vector{Int}, p_inv::Perm{Int}, HH::Vector{Perm{Int}}, PP::Vector{UnitRange{Int}}, n_phi_cycles::Int, n::Int, outlist::Vector{Perm{Int}})
+function find_phis(i::Int, avgtload::Int, tload::Int, part::Vector{Int}, cc::Accumulator{Int, Int}, K::Vector{Int}, p_inv::Perm{Int}, HH::Vector{Perm{Int}}, PP::Vector{UnitRange{Int}}, n_phi_cycles::Int, n::Int, outlist::Vector{Vector{Int}})
         # Need correct start position here, but this will allow for testing
         #inner_struct =  initialize(i)
         #iter_length = makelength(i)
@@ -97,7 +98,7 @@ function find_phis(i::Int, avgtload::Int, tload::Int, part::Vector{Int}, cc::Acc
 		                                end
 		                        end
                                 if is_min ==1
-                                        push!(outlist, phi)
+                                        push!(outlist, phi.d)
                                 end
                         end
                 end
@@ -121,12 +122,15 @@ function get_phi_candidates_v1(n::Int, part::Vector{Int}, g::Int, psitemp::Vecto
         end
         total_load = div(factorial(n), total_load_denom)
         threadload = div(total_load, Threads.nthreads())
+        #threadload = 18381
+        #println(threadload)
+        #flush(stdout)
 		S = symmetric_group(n)
 		sigma = cperm(S,psitemp...)
 		p_inv = Perm(Vector{Int}(sigma^(-1)))
 		H = centralizer(S,sigma)
 		HH = [Perm(Vector{Int}(x)) for x in H[1]]
-		outlist = [Perm{Int}[] for i in 1:Threads.nthreads()]
+		outlist = [Vector{Int}[] for i in 1:Threads.nthreads()]
         for i in 1:Threads.nthreads()
                 sizehint!(outlist[i], threadload)
         end
@@ -146,66 +150,62 @@ function get_phi_candidates_v1(n::Int, part::Vector{Int}, g::Int, psitemp::Vecto
                 #end
         #end
         #outlist[1] = find_phis(1, total_load, part,cc,K,p_inv, HH, PP, n_phi_cycles,n)
-		return([[Perm(Vector{Int}(sigma)), x] for x in reduce(vcat,outlist)])
+		return([[Vector{Int}(sigma), x] for x in reduce(vcat,outlist)])
 	end
 end
 
-function get_phi_candidates_thread(n::Int, part::Vector{Int}, g::Int, psitemp::Vector{Vector{Int}}, n_phi_cycles::Int)
+function get_phi_candidates_v1(n::Int, part::Vector{Int}, g::Int, psitemp::Vector{Vector{Int}}, n_phi_cycles::Int, nm_flag::Int)
 	if sum(part) != n
 		println("Invalid Partition")
 		return([])
 	else
+        cc= counter(part)
+        K = reverse(sort([k for k in keys(cc)]))
+        PP = perm_counter(vcat([[k for i in 1:cc[k]] for k in K]...))
+        if n_phi_cycles ==1
+                hintload = div(map_bound(n, part), n)
+        #threadload = 18381
+        elseif n_phi_cycles ==2
+                hintload = div(round(sum([map_bound(n, [n-i, i], part) for i in 1:(n-1)])), n)
+        else
+                println("use version without mn rule")
+                flush(stdout)
+                return([])
+        end
+        total_load_denom = 1
+        for k in K
+                total_load_denom = total_load_denom*factorial(k)^(cc[k])*factorial(cc[k])
+        end
+        total_load = div(factorial(n), total_load_denom)
+        threadload = div(total_load, Threads.nthreads())
+        #println(threadload)
+        flush(stdout)
 		S = symmetric_group(n)
 		sigma = cperm(S,psitemp...)
 		p_inv = Perm(Vector{Int}(sigma^(-1)))
 		H = centralizer(S,sigma)
 		HH = [Perm(Vector{Int}(x)) for x in H[1]]
-		outlist = [Perm{Int}[] for i in 1:Threads.nthreads()]
-        cc= counter(part)
-        blocklengths=[k*cc[k] for k in keys(cc)]
-        K = [k for k in keys(cc)]
-        outer_structure = [colex_bitstring(n - sum(blocklengths[1:i-1]), blocklengths[i]) for i in 1:length(blocklengths)]
-        PP = perm_counter(vcat([[k for i in 1:cc[k]] for k in keys(cc)]...))
-        looptime = time()
-        #tuple_prod = Iterators.product([1:makeRCI(k,cc[k]).Length for k in keys(cc)]..., PP...)
-        tuple_prod = Iterators.product(outer_structure..., PP...)
-        v_coord = make_cartesian([makeRCI(k,cc[k]).Length for k in keys(cc)])
-        #tuple_prod = Iterators.product(outer_structure..., [1:makeRCI(k,cc[k]).Length for k in keys(cc)]..., PP...)
-        #Threads.@threads for vindex in collect(Iterators.product([1:makeRCI(k,cc[k]).Length for k in keys(cc)]...))
-        Threads.@threads for vindex in v_coord
-        #@floop for thetatuple in tuple_prod
-            # thetatuple is a tuple with the first length(cc) being the big blocks and the remaining elements the "regular_combination_tuples"
-            #block_parts = deepcopy(thetatuple[1:length(keys(cc))])
-                v_parts = deepcopy([unrank_reg_combo(vindex[i], blocklengths[i], K[i]) for i in 1:length(vindex)])
-            for thetatuple in tuple_prod
-                #vindex = thetatuple[1:(end-length(part))]
-                block_parts = thetatuple[1:length(keys(cc))]
-                index = thetatuple[(1+end- length(part)):end]
-                N = [1:n;]
-                t_parts = Vector{Vector{Int}}[]
-                for i in 1:length(keys(cc))
-                        push!(t_parts, [[N[filter(x-> block_parts[i][x] == 1, eachindex(N))][j] for j in w] for w in ct_to_p(v_parts[i])])
-                        N = N[filter(x -> block_parts[i][x] == 0, eachindex(block_parts[i]))]
-                end
-                theta_part = vcat(t_parts...)
-                decomp = deepcopy(perm_components(theta_part, n))
-                theta = make_perm(decomp[1],decomp[2], decomp[3], index)
-                phi = theta^(-1)*p_inv
-                if length(cycles(phi)) == n_phi_cycles
-                        is_min =1
-		                for g in HH
-		                        if (theta^g).d < theta.d
-		                                is_min=0
-		                                break
-		                        end
-		                end
-		                if is_min ==1
-		                        push!(outlist[Threads.threadid()], phi)
-		                end
-		        end
-		    end
+		outlist = [Vector{Int}[] for i in 1:Threads.nthreads()]
+        for i in 1:Threads.nthreads()
+                sizehint!(outlist[i], hintload)
         end
-		return([[Perm(Vector{Int}(sigma)), x] for x in reduce(vcat,outlist)])
+        #flooptime = time()
+        Threads.@threads for i in 1:Threads.nthreads()
+                if i<Threads.nthreads()
+                        find_phis(i, threadload, threadload, part, cc, K, p_inv, HH, PP, n_phi_cycles, n, outlist[i])
+                else
+                        tload = total_load - threadload*(Threads.nthreads()-1)
+                        find_phis(i, threadload, tload, part, cc, K, p_inv, HH, PP, n_phi_cycles,n,outlist[i])
+                end
+                #outlist[i] = Threads.@spawn find_phis(i,tload, part, cc, K, p_inv, HH, PP, n_phi_cycles, n)
+        end
+        #@sync begin
+                #for i in 1:Threads.nthreads()
+                        #outlist[1] = Threads.@spawn find_phis(i, tload, part, cc, K, p_inv, HH, PP, n_phi_cycles,n)
+                #end
+        #end
+        #outlist[1] = find_phis(1, total_load, part,cc,K,p_inv, HH, PP, n_phi_cycles,n)
+		return([[Vector{Int}(sigma), x] for x in reduce(vcat,outlist)])
 	end
 end
 

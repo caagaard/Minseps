@@ -6,15 +6,15 @@ using Combinatorics
 using DataStructures
 
 # Returns the order of the conjugacy class in the symmetric group of a partition
-function conj_class_size(part::Vector{Int})
-	n = sum(part)
-	l = length(part)
+#function conj_class_size(part::Vector{Int})
+#	n = sum(part)
+#	l = length(part)
 	# The size of a conjugacy class is equal to the index of the centralizer
-	# Order of the centralizer is the product of the cycle lengths times the number of ways to mix them up.
-	numb_k_cycles = counter(part)
-	C_ord = prod(part)*prod([factorial(big(numb_k_cycles[k])) for k in 1:n])
-	return(factorial(big(n))/C_ord)
-end
+#	# Order of the centralizer is the product of the cycle lengths times the number of ways to mix them up.
+#	numb_k_cycles = counter(part)
+#	C_ord = prod(part)*prod([factorial(big(numb_k_cycles[k])) for k in 1:n])
+#	return(factorial(big(n))/C_ord)
+#end
 
 #  First step: given g,ghat, E, find all valid triples lambda_1,lambda_2,lambda_3 such that they are minsep candidates.  Note at this point choice of one lambda doesn't affect the others, so just make 3 lists.
 function get_class_candidates(g::Int, ghat::Int, E::Int, i::Int)
@@ -61,7 +61,7 @@ function make_default_perm(in_partition::Vector{Int})
 end
 
 function get_ghat_minseps(g::Int, ghat::Int)
-	big_ghat_minseps = Vector{Vector{Perm{Int}}}[]
+	big_ghat_minseps = Vector{Vector{Vector{Int}}}[]
 	for E in (g+ghat+1):(2*(g+ghat))
 		x = time()
 		push!(big_ghat_minseps, get_ghat_minseps_edges(g, ghat, E))
@@ -71,6 +71,8 @@ function get_ghat_minseps(g::Int, ghat::Int)
 		println(string(time()-x))
 		flush(stdout)
 	end
+    println("about to reduce")
+    flush(stdout)
 	ghat_minseps = reduce(vcat, big_ghat_minseps)
 	return(ghat_minseps)
 end
@@ -78,7 +80,7 @@ end
 # Find minimal separating ribbon graphs with ribbon graph genus ghat and e edges
 # Specialized version of get_ghat_minseps to be more easily split up for long calculations on multiple nodes
 function get_ghat_minseps_edges(g::Int, ghat::Int, E::Int)
-	ghat_minseps_E = Vector{Perm{Int}}[]
+	ghat_minseps_E = Vector{Vector{Int}}[]
 	needed_vertices = 2+g-ghat
 	for i in 1:div(needed_vertices,2)
 		conj_class_nums = get_class_candidates(g, ghat, E, i)
@@ -88,7 +90,11 @@ function get_ghat_minseps_edges(g::Int, ghat::Int, E::Int)
 			for psi_choice in psi_choices
 				psi = make_default_perm(psi_choice)
 				for theta_choice in theta_choices
-					append!(ghat_minseps_E, [x for x in get_phi_candidates_v1(E,theta_choice, ghat, psi, (conj_class_nums[4]))])
+                    if g-ghat >1
+					    append!(ghat_minseps_E, [x for x in get_phi_candidates_v1(E,theta_choice, ghat, psi, (conj_class_nums[4]))])
+                    else
+                        append!(ghat_minseps_E, [x for x in get_phi_candidates_v1(E,theta_choice, ghat, psi, (conj_class_nums[4]),1)])
+                    end
 				end
 				#outs = reduce(vcat,tempouts)
 				# Need to make psi into an actual Perm{Int} object now:
@@ -106,7 +112,7 @@ function get_ghat_minseps_edges(g::Int, ghat::Int, E::Int)
 	end
 	#ghat_minseps_E = reduce(vcat, ghat_minseps_E)
 	if g-ghat > 1
-		return([x for x in ghat_minseps_E if is_transitive_pair(x)])
+		return([x for x in ghat_minseps_E if is_transitive_pair([Perm(x[1]), Perm(x[2])])])
 	else
 		return(ghat_minseps_E)
 	end
@@ -127,12 +133,14 @@ function generate_minseps_genus(g::Int)
 	return(reduce(vcat,total_minseps))
 end
 
-function count_embeds(hypermap_list::Vector{Vector{Perm{Int}}})
+function count_embeds(hypermap_list::Vector{Vector{Vector{Int}}})
     tempcount = length(hypermap_list)
     self_color_counts = zeros(Threads.nthreads())
     Threads.@threads for hypermap in hypermap_list
-	if length(cycles(hypermap[1])) == length(cycles(hypermap[2]))
-		if is_self_color_dual(hypermap[1], hypermap[2]) == 0
+    x = Perm(hypermap[1])
+    y = Perm(hypermap[2])
+	if length(cycles(x)) == length(cycles(y))
+		if is_self_color_dual(x, y) == 0
 			#tempcount= tempcount -0.5
             self_color_counts[Threads.threadid()] += 1
 		end
@@ -141,8 +149,8 @@ function count_embeds(hypermap_list::Vector{Vector{Perm{Int}}})
     tempcount = tempcount - 0.5*(sum(self_color_counts))
     return(tempcount)
 end
-function dual_list_to_minseps(dual_list::Vector{Vector{Perm{Int}}})
-	minseps_list = [get_dual_map(dual[1],dual[2], Int(sum(length(k) for k in cycles(dual[1])))) for dual in dual_list]
+function dual_list_to_minseps(dual_list::Vector{Vector{Vector{Int}}})
+	minseps_list = [get_dual_map(Perm(dual[1]),Perm(dual[2]), Int(sum(length(k) for k in cycles(Perm(dual[1]))))) for dual in dual_list]
 	return(minseps_list)
 end
 
