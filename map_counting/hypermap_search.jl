@@ -77,13 +77,15 @@ function find_phis(i::Int, avgtload::Int, tload::Int, part::Vector{Int}, cc::Acc
         #iter_length = makelength(i)
         # need a "next" for conj class element
         #outlist = Perm{}[]
-        combo_part = [[1:p;] for p in part]
-        j=0
-        while j<avgtload*(i-1)
-                conj_class_next!(n,combo_part, [cc[k] for k in K])
-                j = j+1
-        end
-        while j<tload+avgtload*(i-1)
+        #combo_part = [[1:p;] for p in part]
+        #j=0
+        #while j<avgtload*(i-1)
+        #        conj_class_next!(n,combo_part, [cc[k] for k in K])
+        #        j = j+1
+        #end
+        combo_part = unrank_combo_partition(1+avgtload*(i-1), n, K, [cc[k] for k in K])
+        for j in 1:tload #<tload#+avgtload*(i-1)
+        #while j < tload + avgtload*(i-1)
                 decomp = perm_components(ct_to_p(combo_part), n)
                 for index in Iterators.product(PP...)
                         theta = make_perm(decomp[1], decomp[2], decomp[3], index)
@@ -103,7 +105,7 @@ function find_phis(i::Int, avgtload::Int, tload::Int, part::Vector{Int}, cc::Acc
                         end
                 end
                 combo_part, iter_done = conj_class_next!(n, combo_part, [cc[k] for k in K])
-                j = j+1
+        #        j = j+1
         end
         #return(outlist)
 end

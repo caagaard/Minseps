@@ -111,6 +111,8 @@ function unrank_combo_partition(r::Int, n::Int, K::Vector{Int}, mults::Vector{In
         if length(K) != length(mults)
                 println("K does not match mults")
                 return([[0]])
+        elseif length(K) ==1
+                return(unrank_reg_combo(r,n,K[1]))
         end
         if n != sum([K[i]*mults[i] for i in 1:length(K)])
                 println("error not a valid cycle type")
@@ -118,22 +120,31 @@ function unrank_combo_partition(r::Int, n::Int, K::Vector{Int}, mults::Vector{In
         elseif length(K)==1 && mults ==[1]
                 return([[1:K[1];]])
         else
+                # Need to rework qdenom  I think.  Choice of smallest value in a class of cycles affects number of ways to complete the cycles
+                # so it's not just going to be a single product to consider.  Might need to loop over smallest value choices and check what
+                # choice fits the rank.  
+                # Q is going to be number of ways to complete the first mults[1]-tuple of K[1]-cycles
                 qdenom =1
-                        for i in 1:length(K)
-                                qdenom = qdenom * factorial(mults[i]-1)*(factorial(K[i])^(mults[i]-1))
-                        end
-                Q = div(factorial(n-K[1]), qdenom)
+                for i in 2:length(K)
+                        qdenom = qdenom * factorial(mults[i])*(factorial(K[i])^(mults[i]))
+                end
+                Q = div(factorial(n-(K[1]*mults[1])), qdenom)
                 if Q ==0
                         println("yikes!")
                         return([[1]])
                 else
-                        Rone = div(r-1, Q)
-                        Rtwo = r-Q*Rone
-                        w = combination_unrank(Rone+1, n,K[1])
-                        if mults[1] ==1
-                                return([w, unrank_combo_partition(Rtwo, n-K[1], K[2:end], mults[2:end])...])
-                        else
-                                return([w, unrank_combo_partition(Rtwo, n-K[1], K, [mults[1]-1, mults[2:end]...])...])
+                        # Here we're going to do a kind of converter.  We'll scale down by i-1 do a unrank_reg_combo, then scale back up by i-1
+                        for i in 1:n-(K[1]*mults[1])
+                                Rone = div(r-1, Q)
+                                Rtwo = r-Q*Rone
+                                #println(Rone)
+                                flush(stdout)
+                                w = unrank_reg_combo(Rone+1, n, K[1], mults[1])
+                                #if mults[1] ==1
+                                        return([w..., unrank_combo_partition(Rtwo, n-K[1]*mults[1], K[2:end], mults[2:end])...])
+                                #else
+                                        #return([w, unrank_combo_partition(Rtwo, n-K[1], K, [mults[1]-1, mults[2:end]...])...])
+                                #end
                         end
                 end
         end
@@ -144,7 +155,7 @@ function unrank_reg_combo(r::Int, n::Int, k::Int)
         c = div(n,k)
         if c*k != n
                 println("error k does not divide n")
-                return([0])
+                return([[0]])
         elseif n <=k
                 #println("n=0")
                 return([[1:k;]])
@@ -152,7 +163,7 @@ function unrank_reg_combo(r::Int, n::Int, k::Int)
                 Q = div(factorial(n-k), factorial(c-1)*(factorial(k)^(c-1)))
                 if Q ==0
                         println("yikes!")
-                        return([1])
+                        return([[1]])
                 else
                         Rone = div(r-1, Q)
                         Rtwo = r - Q*Rone
@@ -161,6 +172,39 @@ function unrank_reg_combo(r::Int, n::Int, k::Int)
                                 return([w, [1:k;]])
                         else
                                 return([w, unrank_reg_combo(Rtwo, n-k, k)...])
+                        end
+                end
+        end
+end
+
+function unrank_reg_combo(r::Int, n::Int, k::Int, l::Int)
+        if l==0
+                return(Vector{Int}[])
+        elseif k*l > n
+                println("error k*l > n")
+                return([[0]])
+        else
+                for i in 1:(n+1-k*l)
+                        Q = div(factorial(n+1-i-k), factorial(l-1)*factorial(k)^(l-1)*factorial(n+1-i-l*k))
+                        if Q==0
+                                println("yikes!")
+                                return([[1]])
+                        elseif r > Q*binomial(n-i, k-1)
+                                r = r - Q*binomial(n-i,k-1)
+                        else
+                                Rone = div(r-1,Q)
+                                Rtwo = r - Q*Rone
+                                w = [i-1 for j in 1:k] + combination_unrank(Rone+1, n+1-i, k)
+                                #if (n+1-i-k) ==k
+                                #        return([w, [i:(k+i-1);]])
+                                #else
+                                #        println([[i-1 for j in 1:k] for m in 1:(l-1)])
+                                #        println(unrank_reg_combo(Rtwo, n+1-i-k, k ,(l-1)))
+                                #        println(n+1-i-k)
+                                #        println(Rtwo)
+                                #        println(l)
+                                        return([w, [[i-1 for j in 1:k] for m in 1:(l-1)]+unrank_reg_combo(Rtwo, n+1-i-k, k, l-1)...])
+                                #end
                         end
                 end
         end
@@ -260,6 +304,7 @@ function combination_rank(s::Vector{Int},n::Int, k::Int)
 end
 
 function combination_unrank(r::Int, n::Int, k::Int)
+        running_sum = 1
         if r > binomial(n,k)
                 println("error r> n choose k")
                 return([0])
@@ -274,7 +319,7 @@ function combination_unrank(r::Int, n::Int, k::Int)
                         return [r]
                 else
                         println("error")
-                        return 0
+                        return [0]
                 end
         else
                 running_sum = binomial(n-1, k-1)
