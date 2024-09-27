@@ -1,5 +1,4 @@
-include("perm_utils.jl")
-#Evaluates the irreducible character of S_n corresponding to partition lambda for
+include("perm_utils.jl") #Evaluates the irreducible character of S_n corresponding to partition lambda for
 #elements of cycle type rho.  Assumes that lambda has the for k^1,1^{n-k}.
 function char_eval(n::Int, lambda::Vector{Int}, rho::Vector{Int})
         h = length(lambda)-1
@@ -14,27 +13,14 @@ function char_eval(n::Int, lambda::Vector{Int}, rho::Vector{Int})
                 return((-1)^(r-1)*char_eval(n-r, ones(Int, n-r), rho[2:end]))
         end
         # contribution from leaving only horizontal strip
-        #if r == lambda[1]
-        #        charval = charval + char_eval(n-r, ones(Int,n-r), rho[2:end])
         if r< lambda[1]
                 charval = charval + char_eval(n-r, vcat([lambda[1]-r], lambda[2:end]), rho[2:end])
         end
 #        # contribution from leaving only vertical strip
-#        if r == length(lambda)
-#                charval = charval + (-1)^(h)*char_eval(n-r, [lambda[1]-1], rho[2:end])
         if r<length(lambda)
                 charval = charval + (-1)^(r+1)*char_eval(n-r, vcat([lambda[1]], ones(Int, h-r)), rho[2:end])
         end
 #
-##        if r <= lambda[1]
-#                charval = charval + char_eval(n-r, vcat([lambda[1]-r], lambda[2:end]), rho[2:end])
-#                println(charval)
-#        end
-#        if r<= length(lambda)
-#                charval = charval + (-1)^(r-1)*char_eval(n-r, vcat([lambda[1]], ones(Int, length(lambda)-r)), rho[2:end])
-#                println(charval)
-#        end
-        
         return(charval)
 end
 
