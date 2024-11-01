@@ -150,4 +150,4 @@ function main(E::Int)
 #    println(graphisotime)
 end
 
-main(20)
+main(9)
