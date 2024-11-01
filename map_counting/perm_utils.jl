@@ -56,7 +56,7 @@ end
 # Not sure about typing on the input
 function is_transitive_pair(permpair::Vector{Perm{Int}})
 	n = sum(conjclass(permpair[1]))
-	S = SymmetricGroup(n)
+	S = symmetric_group(n)
 	sigma = cperm(S, [cycles(permpair[1])[i] for i in 1:length(cycles(permpair[1]))])
 	alpha = cperm(S, [cycles(permpair[2])[i] for i in 1:length(cycles(permpair[2]))])
 	# type adjust sigma and alph to be elements of S
