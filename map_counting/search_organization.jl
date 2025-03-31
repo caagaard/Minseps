@@ -33,21 +33,21 @@ function get_class_candidates(g::Int, ghat::Int, E::Int, i::Int)
 	n_phi = sum([conj_class_size(part) for part in phi_candidates])
 	if n_sigma*length(alpha_candidates) >= n_alpha*length(sigma_candidates)
 		if n_sigma >= n_phi
-			theta_flag = 1
+			phi_flag = 1
 		else
-			theta_flag = 0
+			phi_flag = 0
 		end
 		#return(theta_flag, psi_candidates, theta_candidates, j, 0)
-        return(theta_flag, sigma_candidates, phi_candidates, alpha_candidates)
+        return(phi_flag, sigma_candidates, phi_candidates, alpha_candidates)
 	else
 		if n_sigma >= n_phi
-			theta_flag =1
+			phi_flag =1
 		else
-			theta_flag =0
+			phi_flag =0
 		end
 		#return(theta_flag, phi_candidates, theta_candidates, i, 1)
         # was the 5th value in this tuple ever used?
-        return(theta_flag, alpha_candidates, phi_candidates, sigma_candidates)
+        return(phi_flag, alpha_candidates, phi_candidates, sigma_candidates)
 	end
 end
 
@@ -113,7 +113,10 @@ function get_ghat_minseps_edges(g::Int, ghat::Int, E::Int)
 			for sigma_choice in sigma_choices
 			    sigma = make_default_perm(sigma_choice)
                 for alpha_choice in alpha_choices
-                    append!(ghat_minseps_E, [x for x in get_alphas_dist(E,ghat, sigma, alpha_choice, n_phi_cycles)])
+                    # Add a line here to check whether alpha_choice comes before sigma_choice in lex_order
+                    if  2*i != 2+g-ghat || sigma_choice <= alpha_choice
+                        append!(ghat_minseps_E, [x for x in get_alphas_dist(E,ghat, sigma, alpha_choice, n_phi_cycles)])
+                    end
 				end
 				#outs = get_phi_candidates_v2(E, phi_cycles, ghat, sigma)
 				#append!(ghat_minseps_E, [x for x in outs])
@@ -148,18 +151,18 @@ end
 
 function count_embeds(hypermap_list::Vector{Vector{Vector{Int}}})
     tempcount = length(hypermap_list)
-    self_color_counts = zeros(Threads.nthreads())
-    Threads.@threads for hypermap in hypermap_list
-        x = Perm(hypermap[1])
-        y = Perm(hypermap[2])
-	    if length(cycles(x)) == length(cycles(y))
-		    if is_self_color_dual(x, y) == 0
-			    #tempcount= tempcount -0.5
-                self_color_counts[Threads.threadid()] += 1
-		    end
-	    end
-    end
-    tempcount = tempcount - 0.5*(sum(self_color_counts))
+    #self_color_counts = zeros(Threads.nthreads())
+    #Threads.@threads for hypermap in hypermap_list
+    #    x = Perm(hypermap[1])
+    #    y = Perm(hypermap[2])
+	#    if length(cycles(x)) == length(cycles(y))
+	#	    if is_self_color_dual(x, y) == 0
+	#		    #tempcount= tempcount -0.5
+     #           self_color_counts[Threads.threadid()] += 1
+#		    end
+#	    end
+#    end
+#    tempcount = tempcount - 0.5*(sum(self_color_counts))
     return(tempcount)
 end
 

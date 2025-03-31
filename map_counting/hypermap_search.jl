@@ -107,7 +107,21 @@ n_theta_cycles::Int, n::Int, outlist::Vector{Vector{Int}})
                         end
                     end
                     if is_min ==1
-                        push!(outlist, alpha.d)
+                        if conjclass(p_inv) == conjclass(alpha)
+                            rho = solve_conjugation(alpha, p_inv^(-1),n)
+                            pprime = rho^(-1)*(p_inv^(-1))*rho
+                            for g in HH
+                                if (pprime^g).d < alpha.d
+                                    is_min =0
+                                    break
+                                end
+                            end
+                            if is_min ==1
+                                push!(outlist, alpha.d)
+                            end
+                        else
+                            push!(outlist, alpha.d)
+                        end
                     end
                 end
             end
@@ -166,15 +180,32 @@ function find_phis(i::Int, avgtload::Int, tload::Int, part::Vector{Int}, cc::Acc
             theta = make_perm(decomp[1], decomp[2], decomp[3], index)
             phi = theta^(-1)*p_inv
             if length(cycles(phi)) == n_phi_cycles
-                is_min =1
-		        for g in HH
-		            if (theta^g).d < theta.d
-		                is_min=0
-		                break
+                if n_phi_cycles != length(cycles(p_inv)) || conjclass(phi)>= conjclass(p_inv)
+                    is_min =1
+		            for g in HH
+		                if (theta^g).d < theta.d
+		                    is_min=0
+		                    break
+		                end
 		            end
-		        end
-                if is_min ==1
-                    push!(outlist, phi.d)
+                    if is_min ==1
+                        if conjclass(phi) == conjclass(p_inv)
+                            rho = solve_conjugation(phi, p_inv^(-1),n)
+                            phip = rho^(-1)*(p_inv)*rho
+                            thetap = p_inv*phip
+                            for g in HH
+                                if (thetap^g).d < theta.d
+                                    is_min=0
+                                    break
+                                end
+                            end
+                            if is_min ==1
+                                push!(outlist, phi.d)
+                            end
+                        else
+                            push!(outlist, phi.d)
+                        end
+                    end
                 end
             end
         end
