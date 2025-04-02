@@ -149,6 +149,18 @@ function generate_minseps_genus(g::Int)
 	return(reduce(vcat,total_minseps))
 end
 
+function generate_minseps_genus(g::Int, E::Int)
+    total_minseps = []
+    for ghat in maximum([0,(div(E,2)-g)]): minimum([g,(E-g-1)])
+        println("g, ghat = ")
+        println(string(g))
+        println(string(ghat))
+        flush(stdout)
+        push!(total_minseps, get_ghat_minseps_edges(g, ghat, E))
+    end
+    return(reduce(vcat, total_minseps))
+end
+
 function count_embeds(hypermap_list::Vector{Vector{Vector{Int}}})
     tempcount = length(hypermap_list)
     #self_color_counts = zeros(Threads.nthreads())

@@ -60,12 +60,12 @@ function main(E::Int)
 	end
 	if E< 16
 		g=5
-		genus_g_duals = generate_minseps_genus(g,15)
+		genus_g_duals = generate_minseps_genus(g,E)
 		E_g_count = length(genus_g_duals)
 		g_minseps = dual_list_to_minseps(genus_g_duals)
 		println(string(g))
 		flush(stdout)
-		println("Size of E_g for <= 15 edges")
+		println("Size of E_g for $E edges")
 		println(string(E_g_count))
 		flush(stdout)
 		graphsg = minseps_list_to_graphs(g_minseps, g)

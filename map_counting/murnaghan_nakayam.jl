@@ -1,4 +1,5 @@
-include("perm_utils.jl") #Evaluates the irreducible character of S_n corresponding to partition lambda for
+include("perm_utils.jl")
+#Evaluates the irreducible character of S_n corresponding to partition lambda for
 #elements of cycle type rho.  Assumes that lambda has the for k^1,1^{n-k}.
 function char_eval(n::Int, lambda::Vector{Int}, rho::Vector{Int})
         h = length(lambda)-1
@@ -39,7 +40,7 @@ function map_bound(n::Int, phi::Vector{Int}, theta::Vector{Int})
         bigval = conj_class_size(phi)*conj_class_size(theta)
         for i in 1:n
                 lambda = vcat([i], ones(Int, n-i))
-                boundval = boundval + bigval*char_eval(n,lambda, [n])*char_eval(n,lambda, phi)*char_eval(n,lambda,theta)/(factorial(n)*char_eval(n,lambda,ones(Int,n)))
+                boundval = boundval + bigval*char_eval(n,lambda, [n])*char_eval(n,lambda, phi)*char_eval(n,lambda,theta)/(factorial(big(n))*char_eval(n,lambda,ones(Int,n)))
         end
         return(Int(round(boundval)))
 end
