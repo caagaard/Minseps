@@ -7,8 +7,8 @@ function make_I_g(g_graphlist, existing_graphs)
 	I_g = []
 	# for each graph in g_graphlist, want to iso test it againt all of existing_graphs, if it's not iso to any, it stays
 	for graph in g_graphlist
-		println(string(graph))
-		flush(stdout)
+		#println(string(graph))
+		#flush(stdout)
 		if graph == []
 			println("hmm")
 			flush(stdout)
@@ -127,7 +127,7 @@ function main(E::Int)
 		total_minseps= get_ghat_minseps_edges(g,g, E)
 		#genus_g_duals = reduce(vcat, total_minseps)
 		E_g_count = length(total_minseps)
-		g_minseps = dual_list_to_minseps(genus_g_duals)
+		g_minseps = dual_list_to_minseps(total_minseps)
 		println(string(g))
 		flush(stdout)
 		println("Size of E_g for $E edges")
@@ -150,4 +150,4 @@ function main(E::Int)
 #    println(graphisotime)
 end
 
-main(6)
+main(11)
