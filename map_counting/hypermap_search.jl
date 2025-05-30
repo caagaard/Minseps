@@ -3,7 +3,7 @@ include("combinadic.jl")
 include("murnaghan_nakayam.jl")
 using Oscar
 using Combinatorics
-using FLoops
+#using FLoops
 using DataStructures
 
 function perm_components(part::Array{Array{Int,1},1}, n::Int)
@@ -33,60 +33,8 @@ function make_cartesian(v::Vector{Int})
     return(CartesianIndices(ntuple(i-> 1:v[i], n)))
 end
 
-# This needs to be made distributed somehow?
-# When we ran it all cases that use v2 could run 
-# easily on a single node
-# Also need to change output for `local iso testing'
-
-# Currently changing to keep old hypermaps output vs new graph output, just adjusting flow to 
-# be more distributable.  To convert to graphs will need to add a new arraw of counters (one
-# counter per thread)
-function get_phi_candidates_v2(n::Int,k::Int,g::Int, psitemp::Vector{Vector{Int}})
-    #println("running v2")
-	#flush(stdout)
-	S = symmetric_group(n)
-	sigma = cperm(S, psitemp...)
-	psi = Perm(Vector{Int}(sigma))
-	needed_verts = n-k -length(cycles(psi))+2 - 2*g
-	H = centralizer(S,sigma)
-	HH = [Perm(Vector{Int}(x)) for x in H[1]]
-    parts = [part for part in Combinatorics.partitions([Int(1):Int(n);],k)]
-	outlist = [Vector{Int}[] for i in 1:Threads.nthreads()]
-    # Need something more easily distributed here.  
-    # Currently iterating over approximately all (reduced a bit from symmetry) permutations
-    # with given number of cycles
-    # Can either make unrank/next methods for this class or go over conj classes and use
-    # conjclass methods
-    for part in parts
-        decomp = perm_components(part,Int(n))
-        #PP = perm_counter([length(part[i]) for i in 1:length(part)])
-        flooptime = time()
-        #@floop for index in Iterators.product(PP...)
-        PP = make_cartesian([factorial(length(part[i])-1) for i in 1:length(part)])
-        Threads.@threads for index in PP
-            phi = make_perm(decomp[1],decomp[2], decomp[3], Tuple.(index))
-			theta = psi*phi
-			if length(cycles(theta)) == needed_verts
-		        if 1 in [length(cyc) for cyc in cycles(theta)]
-				    nothing
-				else
-				    is_min =1
-					for g in HH
-					    if (g^(-1)*phi*g).d < phi.d
-						    is_min =0
-							break
-						end
-					end
-					if is_min ==1
-					    push!(outlist[Threads.threadid()], phi.d)
-					end
-				end
-			end
-        end     
-    end     
-    return([[Vector{Int}(sigma), x] for x in reduce(vcat,outlist)])
-end 
-
+# Searches a chunk of specified conjugacy class for alphas that gives a hypermap of the desired genus
+# where phi has no fixed points.
 function find_alphas(i::Int, avgtload::Int, tload::Int, par::Vector{Int}, cc::Accumulator{Int, Int}, K::Vector{Int}, p_inv::Perm{Int}, HH::Vector{Perm{Int}}, PP::Vector{UnitRange{Int}},
 n_theta_cycles::Int, n::Int, outlist::Vector{Vector{Int}})
     combo_part = unrank_combo_partition(1+avgtload*(i-1), n, K, [cc[k] for k in K])
@@ -100,6 +48,7 @@ n_theta_cycles::Int, n::Int, outlist::Vector{Vector{Int}})
                     nothing
                 else
                     is_min =1
+			# Check if (p_inv,alpha) is the canonical representative of its isomorphism class
                     for g in HH
                         if (alpha^g).d < alpha.d
                             is_min=0
@@ -107,6 +56,9 @@ n_theta_cycles::Int, n::Int, outlist::Vector{Vector{Int}})
                         end
                     end
                     if is_min ==1
+			# If alpha is conjugate to p_inv we now check if (p_inv, alpha) is the canonical
+			# representative of its `extended isomorphism class' which allows for changing the
+			# 2-coloring of the vertices
                         if conjclass(p_inv) == conjclass(alpha)
                             rho = solve_conjugation(alpha, p_inv^(-1),n)
                             pprime = rho^(-1)*(p_inv^(-1))*rho
@@ -130,9 +82,12 @@ n_theta_cycles::Int, n::Int, outlist::Vector{Vector{Int}})
     end
 end
 
-function get_alphas_dist(n::Int, g::Int, psitemp::Vector{Vector{Int}}, part::Vector{Int}, n_theta_cycles::Int)
-    #println("running alpha search")
-    #flush(stdout)
+# Searches the conjugacy class in S_n corresponding to part for values of alpha that gives a 
+# hypermap of desired genus with phi having no fixed points
+# Returns a list with a single representative of each `extended isomorphism class', where we
+# extend the regular definition of hypermap isomorphism to include swapping the 2-coloring 
+# of the vertices
+function get_alphas_dist(n::Int, g::Int, sigmatemp::Vector{Vector{Int}}, part::Vector{Int}, n_theta_cycles::Int)
     num_nodes =1
     if sum(part) != n
         println("Invalid Partition")
@@ -148,7 +103,7 @@ function get_alphas_dist(n::Int, g::Int, psitemp::Vector{Vector{Int}}, part::Vec
         total_load = div(factorial(n), total_load_denom)
         threadload = div(total_load, (num_nodes*Threads.nthreads()))
         S = symmetric_group(n)
-        sigma = cperm(S, psitemp...)
+        sigma = cperm(S, sigmatemp...)
         p_inv = Perm(Vector{Int}(sigma^(-1)))
         H = centralizer(S,sigma)
         HH=[Perm(Vector{Int}(x)) for x in H[1]]
@@ -168,10 +123,6 @@ function get_alphas_dist(n::Int, g::Int, psitemp::Vector{Vector{Int}}, part::Vec
     end
 end
 
-# This function should run on each thread on each node
-# Distributed version should not store hypermaps, just graphs
-# This means ''adjusting count'' for color swaps
-# Output should be list of graphs and the (color swap adjusted) count of hypermaps
 function find_phis(i::Int, avgtload::Int, tload::Int, part::Vector{Int}, cc::Accumulator{Int, Int}, K::Vector{Int}, p_inv::Perm{Int}, HH::Vector{Perm{Int}}, PP::Vector{UnitRange{Int}}, n_phi_cycles::Int, n::Int, outlist::Vector{Vector{Int}})
     combo_part = unrank_combo_partition(1+avgtload*(i-1), n, K, [cc[k] for k in K])
     for j in 1:tload 
@@ -182,6 +133,8 @@ function find_phis(i::Int, avgtload::Int, tload::Int, part::Vector{Int}, cc::Acc
             if length(cycles(phi)) == n_phi_cycles
                 if n_phi_cycles != length(cycles(p_inv)) || conjclass(phi)>= conjclass(p_inv)
                     is_min =1
+				# Check if (sigma, alpha, phi) is the canonical representative
+				# of its isomorphism class
 		            for g in HH
 		                if (theta^g).d < theta.d
 		                    is_min=0
@@ -189,6 +142,8 @@ function find_phis(i::Int, avgtload::Int, tload::Int, part::Vector{Int}, cc::Acc
 		                end
 		            end
                     if is_min ==1
+			# If sigma is conjugate to alpha, we check it it's the canonical representative
+			# of the extended isomorphism class
                         if conjclass(phi) == conjclass(p_inv)
                             rho = solve_conjugation(phi, p_inv^(-1),n)
                             phip = rho^(-1)*(p_inv)*rho
@@ -219,9 +174,7 @@ end
 # If this is a problem we can eliminate multithreading and run fully distributed but
 # this may cause performance loss for graph iso
 # Should add a parameter for number of nodes this is num_nodes
-function get_phi_candidates_v1(n::Int, part::Vector{Int}, g::Int, psitemp::Vector{Vector{Int}}, n_phi_cycles::Int, num_nodes::Int)
-    #println("running v1 no nmb")
-    #flush(stdout)
+function get_phi_candidates_v1(n::Int, part::Vector{Int}, g::Int, sigmatemp::Vector{Vector{Int}}, n_phi_cycles::Int, num_nodes::Int)
     if sum(part) != n
         println("Invalid Partition")
         return([])
@@ -233,26 +186,17 @@ function get_phi_candidates_v1(n::Int, part::Vector{Int}, g::Int, psitemp::Vecto
         for k in K
             total_load_denom = total_load_denom*factorial(k)^(cc[k])*factorial(cc[k])
         end
-        # Should be adjusted to account for worker numbers
         total_load = div(factorial(n), total_load_denom)
         threadload = div(total_load, (num_nodes*Threads.nthreads()))
-        #threadload = 18381
-        #println(threadload)
-        #flush(stdout)
 		S = symmetric_group(n)
-		sigma = cperm(S,psitemp...)
+		sigma = cperm(S,sigmatemp...)
 		p_inv = Perm(Vector{Int}(sigma^(-1)))
 		H = centralizer(S,sigma)
 		HH = [Perm(Vector{Int}(x)) for x in H[1]]
-        # outlist needs to be updated to be a list of graphs
 		outlist = [Vector{Int}[] for i in 1:Threads.nthreads()]
         for i in 1:Threads.nthreads()
             sizehint!(outlist[i], threadload)
         end
-        #flooptime = time()
-        #counters = zeros(Int64, Threads.nthreads())
-        # find_phis needs worker id along with threadid to find start point
-        # This loop should check worker id in the conditional (only last worker needs to use it)
         Threads.@threads for i in 1:Threads.nthreads()
             if i<Threads.nthreads()
                 find_phis(i, threadload, threadload, part, cc, K, p_inv, HH, PP, n_phi_cycles, n, outlist[i])
@@ -265,9 +209,7 @@ function get_phi_candidates_v1(n::Int, part::Vector{Int}, g::Int, psitemp::Vecto
 	end
 end
 
-function get_phi_candidates_v1(n::Int, part::Vector{Int}, g::Int, psitemp::Vector{Vector{Int}}, n_phi_cycles::Int, num_nodes::Int, nm_flag::Int)
-	#println("running v1 with nmb")
-	#flush(stdout)
+function get_phi_candidates_v1(n::Int, part::Vector{Int}, g::Int, sigmatemp::Vector{Vector{Int}}, n_phi_cycles::Int, num_nodes::Int, nm_flag::Int)
 	if sum(part) != n
 		println("Invalid Partition")
 		return([])
@@ -276,10 +218,8 @@ function get_phi_candidates_v1(n::Int, part::Vector{Int}, g::Int, psitemp::Vecto
         K = reverse(sort([k for k in keys(cc)]))
         PP = perm_counter(vcat([[k for i in 1:cc[k]] for k in K]...))
         if n_phi_cycles ==1
-#       nmb = map_bound(n, part)
             hintload = div(map_bound(n, part), n)
         elseif n_phi_cycles ==2
-#           nmb=0
             hintload = div(round(sum([map_bound(n, [n-i, i], part) for i in 1:div(n,2)])), n)
         else
             println("use version without mn rule")
@@ -292,19 +232,16 @@ function get_phi_candidates_v1(n::Int, part::Vector{Int}, g::Int, psitemp::Vecto
         end
         total_load = div(factorial(n), total_load_denom)
         threadload = div(total_load, Threads.nthreads())
-        #println(threadload)
         flush(stdout)
 	    S = symmetric_group(n)
-	    sigma = cperm(S,psitemp...)
+	    sigma = cperm(S,sigmatemp...)
 	    p_inv = Perm(Vector{Int}(sigma^(-1)))
 	    H = centralizer(S,sigma)
 	    HH = [Perm(Vector{Int}(x)) for x in H[1]]
 	    outlist = [Vector{Int}[] for i in 1:Threads.nthreads()]
-        #counters = zeros(Int64, Threads.nthreads())
         for i in 1:Threads.nthreads()
             sizehint!(outlist[i], hintload)
         end
-        #flooptime = time()
         Threads.@threads for i in 1:Threads.nthreads()
             if i<Threads.nthreads()
                 find_phis(i, threadload, threadload, part, cc, K, p_inv, HH, PP, n_phi_cycles, n, outlist[i])
@@ -312,7 +249,6 @@ function get_phi_candidates_v1(n::Int, part::Vector{Int}, g::Int, psitemp::Vecto
                 tload = total_load - threadload*(Threads.nthreads()-1)
                 find_phis(i, threadload, tload, part, cc, K, p_inv, HH, PP, n_phi_cycles,n,outlist[i])
             end
-            #outlist[i] = Threads.@spawn find_phis(i,tload, part, cc, K, p_inv, HH, PP, n_phi_cycles, n)
         end
 		return([[Vector{Int}(sigma), x] for x in reduce(vcat,outlist)])
 	end

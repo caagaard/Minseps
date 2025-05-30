@@ -1,6 +1,7 @@
 include("perm_utils.jl")
-#Evaluates the irreducible character of S_n corresponding to partition lambda for
-#elements of cycle type rho.  Assumes that lambda has the for k^1,1^{n-k}.
+# Evaluates the irreducible character of S_n corresponding to partition lambda for
+# elements of cycle type rho.  Assumes that lambda has the for k^1,1^{n-k}.
+# We can consider just these lambda because sigma is always an n-cycle when this is used
 function char_eval(n::Int, lambda::Vector{Int}, rho::Vector{Int})
         h = length(lambda)-1
         r = rho[1]
@@ -17,14 +18,16 @@ function char_eval(n::Int, lambda::Vector{Int}, rho::Vector{Int})
         if r< lambda[1]
                 charval = charval + char_eval(n-r, vcat([lambda[1]-r], lambda[2:end]), rho[2:end])
         end
-#        # contribution from leaving only vertical strip
+        # contribution from leaving only vertical strip
         if r<length(lambda)
                 charval = charval + (-1)^(r+1)*char_eval(n-r, vcat([lambda[1]], ones(Int, h-r)), rho[2:end])
         end
-#
+
         return(charval)
 end
 
+# Uses Frobenius formula to compute the number of distinct labelled hypermaps on n bits
+# where sigma and alpha are both n-cycles and phi has cycle-type rho
 function map_bound(n::Int, rho::Vector{Int})
         boundval = 0
         bigval = conj_class_size(rho)
@@ -35,6 +38,8 @@ function map_bound(n::Int, rho::Vector{Int})
         return(Int(round(boundval)))
 end
 
+# Uses Frobenious formula to compute the number of distinct labelled hypermaps on n bits
+# with sigma an n-cycle, and alpha, phi having the specified cycle types
 function map_bound(n::Int, phi::Vector{Int}, theta::Vector{Int})
         boundval = 0
         bigval = conj_class_size(phi)*conj_class_size(theta)

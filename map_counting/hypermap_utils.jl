@@ -55,6 +55,7 @@ function is_self_color_dual(sigma::Perm, alpha::Perm)
 	return(0)
 end
 
+# Takes a hypermap as input and returns a combinatorial map correspond to the dual hypermap
 function get_dual_map(psi::Perm{Int}, phi::Perm{Int}, n::Int)
         phitemp = [n+phi[i] for i in Int(1):n]
         theta = Perm(vcat([psi[i] for i in Int(1):n],phitemp))
@@ -76,6 +77,11 @@ function flipVert(vert, e::Int)
     return(flipped)
 end 
 
+# Takes a permutation nu in S_{2e} as input
+# Constructs a graph homeomorphic to the underlying graph of the
+# combinatorial map (nu, (1 e+1)(2 e+2)... (e 2e))
+# Subdivides any duplicate edges to obtain a simple graph (with possible loops)
+# This is because built in graph isomorphism method doesn't accept multigraphs
 function graph_from_embedding(nu::Perm{Int}, e::Int)
     G = Graphs.Graph(length(cycles(nu)))
     for i in 1:length(cycles(nu))
@@ -84,10 +90,19 @@ function graph_from_embedding(nu::Perm{Int}, e::Int)
 		for j in 1:length(cycles(nu))
 		    if x+e in cycles(nu)[j]
 		        if Graphs.has_edge(G, i, j)
-                            Graphs.add_vertex!(G)
-                            Graphs.add_edge!(G, i, Graphs.nv(G))
-                            Graphs.add_edge!(G, j, Graphs.nv(G))
-                            break
+			    if i == j
+				Graphs.add_vertex!(G)
+				Graphs.add_vertex!(G)
+				Graphs.add_edge!(G, i, Graphs.nv(G)-1)
+				Graphs.add_edge!(G, i, Graphs.nv(G))
+				Graphs.add_edge!(G, Graphs.nv(G)-1, Graphs.nv(G))
+				break
+			    else
+                            	Graphs.add_vertex!(G)
+                            	Graphs.add_edge!(G, i, Graphs.nv(G))
+                            	Graphs.add_edge!(G, j, Graphs.nv(G))
+                            	break
+			    end
                         else
                             Graphs.add_edge!(G,i,j)
                             break

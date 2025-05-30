@@ -53,7 +53,7 @@ function make_default_perm(in_partition::Vector{Int})
 end
 
 # Takes a pair of permutations and returns whether they generate a transitive permutation group
-# Not sure about typing on the input
+# This accesses GAP, so it must not be run within a multithreaded process
 function is_transitive_pair(permpair::Vector{Perm{Int}})
 	n = sum(conjclass(permpair[1]))
 	S = symmetric_group(n)
